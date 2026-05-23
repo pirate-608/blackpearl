@@ -12,8 +12,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/YOUR_USERNAME/agent-project.git
-cd agent-project
+git clone https://github.com/pirate-608/ai-group-work.git
+cd ai-group-work
 
 # 安装依赖并启动
 corepack enable

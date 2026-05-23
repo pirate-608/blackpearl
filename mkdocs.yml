@@ -1,11 +1,45 @@
-site_name: blackpearl-agent Documentation
-site_description: TypeScript TUI AI Agent course project documentation.
-repo_url: ""
+site_name: blackpearl-agent
+site_description: 一个基于 TypeScript、Ink TUI 和多厂商模型后端的教学型 AI Agent 框架
+site_url: https://blackpearl.67656.fun/
+repo_url: https://github.com/pirate-608/ai-group-work
+repo_name: pirate-608/ai-group-work
+edit_uri: edit/main/docs/
+
 docs_dir: docs
 site_dir: site
+
 theme:
-  name: mkdocs
-  locale: zh
+  name: material
+  language: zh
+  palette:
+    - scheme: default
+      primary: cyan
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: 切换至深色模式
+    - scheme: slate
+      primary: cyan
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: 切换至浅色模式
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
 nav:
   - 首页: index.md
   - 快速开始: usage.md
@@ -16,11 +50,24 @@ nav:
   - 课程方案: recommended-solution.md
   - 基础构建说明: implementation-notes.md
   - 作业原始要求: raw-instruction.md
+
 markdown_extensions:
   - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
   - toc:
       permalink: true
   - tables
-  - fenced_code
-  - codehilite
+  - attr_list
+  - md_in_html
+
 strict: true
