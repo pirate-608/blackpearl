@@ -23,7 +23,7 @@ cd ai-group-work
 
 ```powershell
 # 启用 Corepack（首次需要）
-corepack enable
+corepack enable  # 需要管理员权限
 
 # 安装依赖
 corepack pnpm install

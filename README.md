@@ -15,18 +15,22 @@
 git clone https://github.com/pirate-608/ai-group-work.git
 cd ai-group-work
 
-# 安装依赖并启动
-corepack enable
-corepack pnpm install
+# 安装依赖并启动（需要本地node.js环境）
+corepack enable          # 需要管理员权限
+corepack pnpm install    
 copy .env.example .env
 corepack pnpm dev
 ```
+
+执行 /connect 命令，可交互式配置模型 provider
 
 Web 界面：
 
 ```bash
 corepack pnpm web
 ```
+
+同样执行 /connect 命令，可在web界面交互式配置模型 provider
 
 默认访问 `http://localhost:4173`。
 

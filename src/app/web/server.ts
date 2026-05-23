@@ -1,3 +1,4 @@
+import { exec } from "node:child_process";
 import http, { type ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
 import type { AgentEvent } from "../../agent/events.js";
@@ -91,7 +92,19 @@ server.on("error", (err: NodeJS.ErrnoException) => {
 });
 
 server.listen(WEB_PORT, () => {
-  console.log(`blackpearl-agent web listening on http://localhost:${WEB_PORT}`);
+  const url = `http://localhost:${WEB_PORT}`;
+  console.log(`blackpearl-agent web listening on ${url}`);
+
+  if (!process.env.BLACKPEARL_NO_BROWSER) {
+    const platform = process.platform;
+    const openCmd =
+      platform === "darwin"
+        ? `open ${url}`
+        : platform === "win32"
+          ? `start ${url}`
+          : `xdg-open ${url}`;
+    exec(openCmd, () => {});
+  }
 });
 
 // ── Handlers ──────────────────────────────────────────────────────
