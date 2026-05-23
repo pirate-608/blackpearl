@@ -11,6 +11,7 @@ render(
   <App
     session={context.session}
     orchestrator={context.orchestrator}
+    multiAgentOrchestrator={context.multiAgentOrchestrator}
     runtime={context.runtime}
     connectionStore={context.connectionStore}
     eventBus={context.eventBus}

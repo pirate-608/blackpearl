@@ -15,10 +15,14 @@ export type ActivityItem = {
 };
 
 export class AgentSession {
-  readonly id = randomUUID();
+  readonly id: string;
   readonly messages: ConversationMessage[] = [];
   readonly activities: ActivityItem[] = [];
   private streamingAssistantIndex: number | undefined;
+
+  constructor(sessionId?: string) {
+    this.id = sessionId ?? randomUUID();
+  }
 
   addUserMessage(content: string): void {
     this.messages.push({
@@ -87,6 +91,22 @@ export class AgentSession {
 
     if (event.type === "assistant_message") {
       this.addAssistantMessage(event.content);
+      return;
+    }
+
+    if (event.type === "plan_created") {
+      this.streamingAssistantIndex = undefined;
+      this.addActivity("plan", event.steps.map((s, i) => `${i + 1}. ${s}`).join("\n"));
+      return;
+    }
+
+    if (event.type === "step_started") {
+      this.addActivity(`[${event.stepIndex + 1}/${event.totalSteps}] ${event.step}`);
+      return;
+    }
+
+    if (event.type === "step_completed") {
+      this.addActivity(`done [${event.stepIndex + 1}/${event.totalSteps}]`, summarizeValue(event.result));
       return;
     }
 

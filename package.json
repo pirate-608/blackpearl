@@ -1,9 +1,15 @@
 {
   "name": "blackpearl-agent",
   "version": "0.1.0",
-  "private": true,
+  "description": "A TypeScript + Ink TUI multi-provider AI Agent framework for educational use.",
   "type": "module",
   "packageManager": "pnpm@10.12.1",
+  "bin": {
+    "blackpearl": "./dist/cli.js"
+  },
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "dev": "tsx src/index.tsx",
     "web": "tsx src/app/web/server.ts",
@@ -11,7 +17,8 @@
     "start": "node dist/index.js",
     "start:web": "node dist/app/web/server.js",
     "test": "vitest run",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm build && pnpm test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

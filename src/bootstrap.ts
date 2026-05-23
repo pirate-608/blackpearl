@@ -6,6 +6,7 @@ import { ConnectionStore } from "./llm/connection-store.js";
 import type { ModelConnection } from "./llm/providers.js";
 import { createRunner } from "./llm/runner-factory.js";
 import { MemoryStore } from "./memory/memory-store.js";
+import { MultiAgentOrchestrator } from "./agent/multi-agent-orchestrator.js";
 import type { AppConfig } from "./shared/config.js";
 import { TranscriptStore } from "./storage/transcript-store.js";
 import { createDefaultToolRegistry } from "./tools/index.js";
@@ -16,13 +17,17 @@ export type AgentAppContext = {
   eventBus: EventBus;
   runtime: AgentRuntime;
   orchestrator: AgentOrchestrator;
+  multiAgentOrchestrator: MultiAgentOrchestrator;
   connectionStore: ConnectionStore;
   toolRegistry: ReturnType<typeof createDefaultToolRegistry>;
   memoryStore: MemoryStore;
 };
 
-export async function createAgentAppContext(config: AppConfig): Promise<AgentAppContext> {
-  const session = new AgentSession();
+export async function createAgentAppContext(
+  config: AppConfig,
+  sessionId?: string,
+): Promise<AgentAppContext> {
+  const session = new AgentSession(sessionId);
   const eventBus = new EventBus();
   const toolRegistry = createDefaultToolRegistry(config);
   const fallbackConnection = buildFallbackConnection(config);
@@ -47,6 +52,29 @@ export async function createAgentAppContext(config: AppConfig): Promise<AgentApp
     transcriptStore,
     memoryStore,
   });
+  const multiAgentOrchestrator = new MultiAgentOrchestrator({
+    session,
+    runtime,
+    eventBus,
+    transcriptStore,
+    memoryStore,
+  });
+
+  // Replay transcript messages if resuming an existing session
+  if (sessionId) {
+    const records = await TranscriptStore.readSession(config.workspaceRoot, sessionId);
+    for (const record of records) {
+      if (record.kind === "message") {
+        if (record.role === "user") {
+          session.addUserMessage(record.content);
+        } else {
+          session.addAssistantMessage(record.content);
+        }
+      } else if (record.kind === "event") {
+        session.applyEvent(record.event);
+      }
+    }
+  }
 
   eventBus.emit({
     type: "session_started",
@@ -60,6 +88,7 @@ export async function createAgentAppContext(config: AppConfig): Promise<AgentApp
     eventBus,
     runtime,
     orchestrator,
+    multiAgentOrchestrator,
     connectionStore,
     toolRegistry,
     memoryStore,

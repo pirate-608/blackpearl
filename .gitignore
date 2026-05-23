@@ -9,3 +9,7 @@ artifacts/
 coverage/
 .venv/
 outputs/
+temp
+prompt.md
+.github/workflows/publish.yml
+.github/workflows/ci.yml

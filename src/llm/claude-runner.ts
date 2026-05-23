@@ -21,7 +21,14 @@ export type ClaudeRunnerOptions = {
 export class ClaudeRunner implements AgentRunner {
   constructor(private readonly options: ClaudeRunnerOptions) {}
 
-  async run(userInput: string, emit: EmitEvent): Promise<string> {
+  async run(userInput: string, emit: EmitEvent, options?: Parameters<AgentRunner["run"]>[2]): Promise<string> {
+    const instructions = options?.instructions ?? SYSTEM_PROMPT;
+    const openaiTools = options?.tools ?? this.options.toolRegistry.getOpenAITools();
+    const tools: Tool[] = options?.tools
+      ? openaiTools.map((t) => ({ name: t.name, description: t.description, input_schema: (t.parameters ?? { type: "object", properties: {} }) as Tool.InputSchema }))
+      : this.options.toolRegistry.getClaudeTools();
+    const maxSteps = options?.maxSteps ?? this.options.maxSteps;
+
     const messages: MessageParam[] = [
       {
         role: "user",
@@ -29,15 +36,15 @@ export class ClaudeRunner implements AgentRunner {
       },
     ];
 
-    for (let step = 0; step < this.options.maxSteps; step++) {
+    for (let step = 0; step < maxSteps; step++) {
       const response = await createClaudeMessage(
         this.options.client,
         {
           model: this.options.model,
           max_tokens: 2048,
-          system: SYSTEM_PROMPT,
+          system: instructions,
           messages,
-          tools: this.options.toolRegistry.getClaudeTools(),
+          ...(tools.length > 0 ? { tools } : {}),
         },
         emit,
       );
@@ -111,7 +118,7 @@ export class ClaudeRunner implements AgentRunner {
       });
     }
 
-    throw new AgentError(`Agent exceeded max steps (${this.options.maxSteps}).`);
+    throw new AgentError(`Agent exceeded max steps (${maxSteps}).`);
   }
 }
 

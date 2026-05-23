@@ -31,7 +31,7 @@ AGENT_MAX_STEPS=6
 - `src/index.tsx`: TUI 程序入口。
 - `src/app/tui/`: Ink 终端界面。
 - `src/app/web/`: 本地 Web 界面和 HTTP/SSE 服务。
-- `src/agent/`: 会话、事件、编排器和系统提示词。
+- `src/agent/`: 会话、事件、单 Agent 编排器、多 Agent 编排器和系统提示词。
 - `src/llm/`: provider profiles、连接存储、runner factory、Responses runner、Chat Completions runner 与 Claude/DeepSeek Anthropic-compatible runner。
 - `src/memory/`: 短期记忆上下文和长期记忆 JSONL 存储。
 - `src/tools/`: 工具注册表与默认工具。
@@ -42,7 +42,9 @@ AGENT_MAX_STEPS=6
 - 流式输出：runner 发出 `assistant_delta`，TUI 和 Web 统一消费。
 - 短期记忆：当前 session 最近消息会注入下一次请求。
 - 长期记忆：一轮问答摘要写入 `.blackpearl/memory.jsonl`，后续按关键词召回。
-- Web 界面：`corepack pnpm web` 启动，默认访问 `http://localhost:4173`。
+- Web 界面：`corepack pnpm web` 启动，默认访问 `http://localhost:4173`，支持完整 `/` 命令和 connect 模态框。
+- 多 Agent 协作：`/plan` 命令触发规划 + 执行 + 汇总三阶段流程。
+- 优雅退出：Web 服务器支持 `/exit` 命令和 SIGINT 关闭，端口冲突时给出清晰提示。
 
 ## 已实现工具
 

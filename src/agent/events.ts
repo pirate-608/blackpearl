@@ -36,6 +36,23 @@ export type AgentEvent =
       message: string;
     }
   | {
+      type: "plan_created";
+      steps: string[];
+    }
+  | {
+      type: "step_started";
+      stepIndex: number;
+      totalSteps: number;
+      step: string;
+    }
+  | {
+      type: "step_completed";
+      stepIndex: number;
+      totalSteps: number;
+      step: string;
+      result: string;
+    }
+  | {
       type: "error";
       message: string;
     };

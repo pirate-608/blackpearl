@@ -23,11 +23,15 @@ export type ChatCompletionsRunnerOptions = {
 export class ChatCompletionsRunner implements AgentRunner {
   constructor(private readonly options: ChatCompletionsRunnerOptions) {}
 
-  async run(userInput: string, emit: EmitEvent): Promise<string> {
+  async run(userInput: string, emit: EmitEvent, options?: Parameters<AgentRunner["run"]>[2]): Promise<string> {
+    const instructions = options?.instructions ?? SYSTEM_PROMPT;
+    const tools = options?.tools ?? this.options.toolRegistry.getOpenAITools();
+    const maxSteps = options?.maxSteps ?? this.options.maxSteps;
+
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: SYSTEM_PROMPT,
+        content: instructions,
       },
       {
         role: "user",
@@ -35,11 +39,11 @@ export class ChatCompletionsRunner implements AgentRunner {
       },
     ];
 
-    for (let step = 0; step < this.options.maxSteps; step++) {
+    for (let step = 0; step < maxSteps; step++) {
       const request: ChatCompletionCreateParamsNonStreaming = {
         model: this.options.model,
         messages,
-        tools: this.options.toolRegistry.getChatCompletionTools(),
+        tools: toChatCompletionTools(tools),
         tool_choice: "auto",
         parallel_tool_calls: false,
       };
@@ -107,7 +111,7 @@ export class ChatCompletionsRunner implements AgentRunner {
       }
     }
 
-    throw new AgentError(`Agent exceeded max steps (${this.options.maxSteps}).`);
+    throw new AgentError(`Agent exceeded max steps (${maxSteps}).`);
   }
 }
 

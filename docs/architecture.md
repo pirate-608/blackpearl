@@ -6,7 +6,7 @@
 
 ```text
 TUI / Web
-  -> Agent Orchestrator
+  -> Agent Orchestrator / Multi-Agent Orchestrator
     -> Memory Store
     -> Provider Runner
       -> OpenAI-compatible API / Anthropic-compatible API
@@ -43,6 +43,7 @@ src/
 8. 创建 `TranscriptStore`。
 9. 创建 `MemoryStore`。
 10. 创建 `AgentOrchestrator`。
+11. 创建 `MultiAgentOrchestrator`。
 
 入口只做组装，不承载工具逻辑或模型调用细节。
 
@@ -69,10 +70,13 @@ Web 层位于 `src/app/web/`。
 
 `server.ts` 使用 Node 内置 HTTP 服务提供：
 
-- `GET /`: Web 页面。
+- `GET /`: Web 页面（内嵌 HTML/CSS/JS，支持完整 `/` 命令提示和 connect 模态框）。
 - `GET /api/state`: 当前 session 快照。
 - `GET /api/events`: Server-Sent Events 事件流。
-- `POST /api/message`: 提交用户消息。
+- `POST /api/message`: 提交用户消息（单 Agent 模式）。
+- `POST /api/plan`: 提交多 Agent 协作任务。
+- `POST /api/command`: 执行 `/model`、`/connect` 等服务器端命令。
+- `POST /api/exit`: 优雅关闭服务器。
 
 Web 页面通过 SSE 消费与 TUI 相同的 `AgentEvent`。这使得流式文本、工具活动和错误处理都由同一套后端事件驱动。
 
@@ -95,6 +99,9 @@ Agent 层位于 `src/agent/`。
 - 工具开始
 - 工具完成
 - 工具失败
+- 计划创建（多 Agent）
+- 步骤开始（多 Agent）
+- 步骤完成（多 Agent）
 - 错误
 
 ### `AgentOrchestrator`
@@ -224,5 +231,22 @@ LLM 层位于 `src/llm/`。
   -> tool result
   -> Model API streaming
   -> final answer
+  -> AgentSession / TranscriptStore / MemoryStore / TUI or Web
+```
+
+多 Agent 协作数据流（`/plan`）：
+
+```text
+用户输入
+  -> App.handleSubmit (detects /plan)
+  -> MultiAgentOrchestrator.handleUserInput
+  -> MemoryStore.search
+  -> Phase 1: ProviderRunner.run (PLANNER_PROMPT, no tools)
+  -> plan_created event
+  -> Phase 2: for each step:
+       ProviderRunner.run (EXECUTOR_PROMPT, with tools)
+       -> step_started / step_completed events
+  -> Phase 3: ProviderRunner.run (summarize, no tools)
+  -> assistant_message event
   -> AgentSession / TranscriptStore / MemoryStore / TUI or Web
 ```

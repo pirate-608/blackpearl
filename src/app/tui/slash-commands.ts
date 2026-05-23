@@ -1,4 +1,4 @@
-export type SlashCommandId = "help" | "tools" | "connect" | "model" | "clear" | "exit";
+export type SlashCommandId = "help" | "tools" | "connect" | "model" | "clear" | "plan" | "exit";
 
 export type SlashCommand = {
   id: SlashCommandId;
@@ -31,6 +31,11 @@ export const slashCommands: SlashCommand[] = [
     id: "clear",
     name: "/clear",
     description: "清空当前界面记录",
+  },
+  {
+    id: "plan",
+    name: "/plan",
+    description: "多 Agent 协作模式：规划 + 执行",
   },
   {
     id: "exit",

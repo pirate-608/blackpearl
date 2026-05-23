@@ -34,3 +34,7 @@ corepack pnpm web
 - 短期记忆和 JSONL 长期记忆
 - `/connect` provider 配置
 - `/model` 模型切换
+- `/plan` 多 Agent 协作（规划 Agent + 执行 Agent）
+- Web 界面支持 `/` 命令提示、model 切换和 connect 配置
+- 端口冲突自动检测与优雅退出
+- 多 Agent 协作模式：规划 Agent 分解任务 → 执行 Agent 逐步执行 → 汇总

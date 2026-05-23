@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Text, useApp } from "ink";
 import type { AgentOrchestrator } from "../../agent/orchestrator.js";
+import type { MultiAgentOrchestrator } from "../../agent/multi-agent-orchestrator.js";
 import type { AgentRuntime } from "../../agent/runtime.js";
 import type { EventBus } from "../../agent/events.js";
 import type { AgentSession } from "../../agent/session.js";
@@ -30,6 +31,7 @@ import { StatusBar } from "./StatusBar.js";
 type AppProps = {
   session: AgentSession;
   orchestrator: AgentOrchestrator;
+  multiAgentOrchestrator: MultiAgentOrchestrator;
   runtime: AgentRuntime;
   connectionStore: ConnectionStore;
   eventBus: EventBus;
@@ -53,6 +55,7 @@ type UiMode =
 export function App({
   session,
   orchestrator,
+  multiAgentOrchestrator,
   runtime,
   connectionStore,
   eventBus,
@@ -82,6 +85,22 @@ export function App({
   async function handleSubmit(input: string): Promise<void> {
     if (uiMode.type === "connect") {
       await handleConnectInput(input);
+      return;
+    }
+
+    // /plan <request> — multi-agent mode with inline request
+    if (input.trim().startsWith("/plan ") || input.trim() === "/plan") {
+      const request = input.trim().startsWith("/plan ") ? input.trim().slice(6).trim() : "";
+      if (!request) {
+        setNotice("用法：/plan <任务描述>，例如 /plan 查一下爱因斯坦的出生年份并计算年龄");
+        return;
+      }
+      setIsRunning(true);
+      setNotice("多 Agent 协作：规划中...");
+      await multiAgentOrchestrator.handleUserInput(request);
+      setIsRunning(false);
+      setNotice("多 Agent 协作完成。");
+      setRenderTick((tick) => tick + 1);
       return;
     }
 
