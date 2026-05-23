@@ -4,6 +4,10 @@
 
 项目支持系统化模型后端配置：OpenAI、Gemini、Claude、DeepSeek 和 Ollama。OpenAI-compatible 后端使用 OpenAI SDK；Claude 使用 Anthropic Messages API。不同厂商对工具调用、鉴权和模型名的兼容程度不同，项目按 provider 分别适配。
 
+## 项目文档
+
+查看[项目文档](http://blackpearl.67656.fun/)
+
 ## 快速开始
 
 ```bash
