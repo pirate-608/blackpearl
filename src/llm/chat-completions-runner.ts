@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
 import type {
   ChatCompletionAssistantMessageParam,
+  ChatCompletionCreateParamsStreaming,
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageFunctionToolCall,
   ChatCompletionMessageParam,
@@ -43,8 +44,8 @@ export class ChatCompletionsRunner implements AgentRunner {
         parallel_tool_calls: false,
       };
 
-      const completion = await this.options.client.chat.completions.create(request);
-      const message = completion.choices[0]?.message;
+      const completion = await createChatCompletion(this.options.client, request, emit);
+      const message = completion;
 
       if (!message) {
         throw new AgentError("Chat completions returned no message.");
@@ -108,6 +109,85 @@ export class ChatCompletionsRunner implements AgentRunner {
 
     throw new AgentError(`Agent exceeded max steps (${this.options.maxSteps}).`);
   }
+}
+
+async function createChatCompletion(
+  client: OpenAI,
+  request: ChatCompletionCreateParamsNonStreaming,
+  emit: EmitEvent,
+): Promise<ChatCompletionAssistantMessageParam & { content?: string | null }> {
+  const streamingRequest: ChatCompletionCreateParamsStreaming = {
+    ...request,
+    stream: true,
+  };
+  const stream = await client.chat.completions.create(streamingRequest);
+  const toolCallParts = new Map<
+    number,
+    {
+      id?: string;
+      name?: string;
+      arguments: string;
+    }
+  >();
+  let content = "";
+
+  for await (const chunk of stream) {
+    for (const choice of chunk.choices) {
+      const delta = choice.delta;
+
+      if (delta.content) {
+        content += delta.content;
+        emit({ type: "assistant_delta", content: delta.content });
+      }
+
+      for (const toolCall of delta.tool_calls ?? []) {
+        const index = toolCall.index;
+        const existing = toolCallParts.get(index) ?? { arguments: "" };
+
+        if (toolCall.id) {
+          existing.id = toolCall.id;
+        }
+
+        if (toolCall.function?.name) {
+          existing.name = toolCall.function.name;
+        }
+
+        if (toolCall.function?.arguments) {
+          existing.arguments += toolCall.function.arguments;
+        }
+
+        toolCallParts.set(index, existing);
+      }
+    }
+  }
+
+  const assistantMessage: ChatCompletionAssistantMessageParam & { content?: string | null } = {
+    role: "assistant",
+    content: content || null,
+  };
+
+  const toolCalls = [...toolCallParts.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([, toolCall], index): ChatCompletionMessageToolCall => {
+      if (!toolCall.name) {
+        throw new AgentError("Chat completions returned a tool call without a name.");
+      }
+
+      return {
+        id: toolCall.id ?? `tool_call_${index}`,
+        type: "function",
+        function: {
+          name: toolCall.name,
+          arguments: toolCall.arguments,
+        },
+      };
+    });
+
+  if (toolCalls.length > 0) {
+    assistantMessage.tool_calls = toolCalls;
+  }
+
+  return assistantMessage;
 }
 
 function readChatMessageContent(content: unknown): string {

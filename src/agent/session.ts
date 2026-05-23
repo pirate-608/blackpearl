@@ -18,6 +18,7 @@ export class AgentSession {
   readonly id = randomUUID();
   readonly messages: ConversationMessage[] = [];
   readonly activities: ActivityItem[] = [];
+  private streamingAssistantIndex: number | undefined;
 
   addUserMessage(content: string): void {
     this.messages.push({
@@ -28,6 +29,16 @@ export class AgentSession {
   }
 
   addAssistantMessage(content: string): void {
+    if (this.streamingAssistantIndex !== undefined) {
+      const streamingMessage = this.messages[this.streamingAssistantIndex];
+
+      if (streamingMessage?.role === "assistant") {
+        streamingMessage.content = content;
+        this.streamingAssistantIndex = undefined;
+        return;
+      }
+    }
+
     this.messages.push({
       role: "assistant",
       content,
@@ -51,6 +62,7 @@ export class AgentSession {
 
   applyEvent(event: AgentEvent): void {
     if (event.type === "tool_call_started") {
+      this.streamingAssistantIndex = undefined;
       this.addActivity(`tool: ${event.toolName}`, JSON.stringify(event.args));
       return;
     }
@@ -68,9 +80,46 @@ export class AgentSession {
       return;
     }
 
+    if (event.type === "assistant_delta") {
+      this.appendAssistantDelta(event.content);
+      return;
+    }
+
+    if (event.type === "assistant_message") {
+      this.addAssistantMessage(event.content);
+      return;
+    }
+
     if (event.type === "error") {
+      this.streamingAssistantIndex = undefined;
       this.addActivity("error", event.message);
     }
+  }
+
+  private appendAssistantDelta(content: string): void {
+    if (!content) {
+      return;
+    }
+
+    if (this.streamingAssistantIndex === undefined) {
+      this.messages.push({
+        role: "assistant",
+        content,
+        createdAt: new Date().toISOString(),
+      });
+      this.streamingAssistantIndex = this.messages.length - 1;
+      return;
+    }
+
+    const message = this.messages[this.streamingAssistantIndex];
+
+    if (!message || message.role !== "assistant") {
+      this.streamingAssistantIndex = undefined;
+      this.appendAssistantDelta(content);
+      return;
+    }
+
+    message.content += content;
   }
 }
 

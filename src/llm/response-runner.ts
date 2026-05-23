@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
 import type {
   ResponseCreateParamsNonStreaming,
+  ResponseCreateParamsStreaming,
   ResponseInput,
 } from "openai/resources/responses/responses";
 import { SYSTEM_PROMPT } from "../agent/prompts.js";
@@ -48,7 +49,7 @@ export class ResponseRunner implements AgentRunner {
         request.previous_response_id = previousResponseId;
       }
 
-      const response = (await this.options.client.responses.create(request)) as ResponseLike;
+      const response = await createResponse(this.options.client, request, emit);
 
       previousResponseId = response.id;
       const toolCalls = (response.output ?? []).filter(
@@ -114,6 +115,35 @@ export class ResponseRunner implements AgentRunner {
 
     throw new AgentError(`Agent exceeded max steps (${this.options.maxSteps}).`);
   }
+}
+
+async function createResponse(
+  client: OpenAI,
+  request: ResponseCreateParamsNonStreaming,
+  emit: EmitEvent,
+): Promise<ResponseLike> {
+  const streamingRequest: ResponseCreateParamsStreaming = {
+    ...request,
+    stream: true,
+  };
+  const stream = await client.responses.create(streamingRequest);
+  let completedResponse: ResponseLike | undefined;
+
+  for await (const event of stream) {
+    if (event.type === "response.output_text.delta") {
+      emit({ type: "assistant_delta", content: event.delta });
+    }
+
+    if (event.type === "response.completed") {
+      completedResponse = event.response as ResponseLike;
+    }
+  }
+
+  if (!completedResponse) {
+    throw new AgentError("Responses stream ended without a completed response.");
+  }
+
+  return completedResponse;
 }
 
 function parseToolArguments(raw: string | undefined): unknown {

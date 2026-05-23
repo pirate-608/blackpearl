@@ -122,6 +122,38 @@ corepack pnpm dev
 
 启动后会进入终端界面。普通文本会交给 Agent 执行，斜杠命令由 TUI 本地处理。
 
+## 启动 Web 界面
+
+```powershell
+corepack pnpm web
+```
+
+默认监听：
+
+```text
+http://localhost:4173
+```
+
+如需修改端口：
+
+```powershell
+$env:BLACKPEARL_WEB_PORT=4180
+corepack pnpm web
+```
+
+Web 界面提供与 TUI 共用的 Agent 编排、工具调用和记忆能力。浏览器通过 SSE 接收 `assistant_delta`、工具调用和错误事件，因此回答会按 token 增量显示。
+
+## 记忆文件
+
+当前实现包含两类记忆：
+
+| 类型 | 存储位置 | 说明 |
+| --- | --- | --- |
+| 短期记忆 | 进程内 `AgentSession` | 注入最近若干轮对话，随进程退出清空 |
+| 长期记忆 | `.blackpearl/memory.jsonl` | 每轮问答后追加摘要，后续请求按关键词召回 |
+
+长期记忆是课程项目中的轻量实现，适合展示“记忆写入 -> 检索 -> 上下文注入”的基本闭环。它不是向量数据库，也不包含隐私脱敏或记忆管理 UI。
+
 ## TUI 命令
 
 输入 `/` 时，输入框下方会显示命令提示。继续输入会按前缀过滤命令，类似 Claude Code 或 Copilot CLI 的交互方式。
@@ -169,6 +201,12 @@ corepack pnpm build
 
 ```powershell
 corepack pnpm start
+```
+
+运行编译后的 Web 入口：
+
+```powershell
+corepack pnpm start:web
 ```
 
 ## 文档构建

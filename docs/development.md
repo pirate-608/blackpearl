@@ -13,6 +13,7 @@
 corepack pnpm build
 corepack pnpm test
 corepack pnpm dev
+corepack pnpm web
 ```
 
 ## TypeScript 约束
@@ -70,6 +71,10 @@ registry.register(exampleTool);
 当前已有测试：
 
 - `src/tools/calculator.test.ts`
+- `src/memory/memory-store.test.ts`
+- `src/llm/connection-store.test.ts`
+- `src/llm/providers.test.ts`
+- `src/app/tui/slash-commands.test.ts`
 
 建议补充测试：
 
@@ -116,9 +121,8 @@ http://127.0.0.1:8000
 
 ## 已知后续任务
 
-1. 将 `ResponseRunner` 改为支持 stream。
-2. 将 `assistant_delta` 事件真正接入 TUI。
-3. 给 Chat Completions runner 补 mock 集成测试。
-4. 增加 `/history` 命令读取 transcript。
-5. 增加写文件前确认机制。
-6. 扩展工具测试和 OpenAI runner mock 测试。
+1. 给 Chat Completions runner 和 Responses runner 补 mock 集成测试。
+2. 增加 `/history` 命令读取 transcript。
+3. 增加写文件前确认机制。
+4. 给长期记忆增加删除、编辑和导出能力。
+5. 扩展工具测试和真实 provider 兼容性记录。

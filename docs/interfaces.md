@@ -10,8 +10,10 @@
 | --- | --- |
 | `corepack pnpm install` | 安装 Node 依赖 |
 | `corepack pnpm dev` | 以 tsx 运行 TUI 开发入口 |
+| `corepack pnpm web` | 启动本地 Web 界面 |
 | `corepack pnpm build` | 执行 TypeScript 编译 |
 | `corepack pnpm start` | 运行 `dist/index.js` |
+| `corepack pnpm start:web` | 运行编译后的 Web 入口 |
 | `corepack pnpm test` | 运行 Vitest 测试 |
 | `corepack pnpm lint` | 执行 TypeScript noEmit 检查 |
 
@@ -46,6 +48,7 @@
 | `OPENAI_MODEL` | string | `gpt-4.1-mini` | Responses API 模型 |
 | `OPENAI_API_MODE` | `responses` 或 `chat_completions` | `responses` | LLM runner 适配模式 |
 | `AGENT_MAX_STEPS` | number | `6` | 单次任务最大循环步数 |
+| `BLACKPEARL_WEB_PORT` | number | `4173` | Web 界面监听端口 |
 
 `AGENT_MAX_STEPS` 会通过 `Number.parseInt` 解析；解析失败时使用 `6`。
 `OPENAI_API_MODE` 只接受 `responses` 和 `chat_completions`；其他值会回退到 `responses`。
@@ -81,7 +84,7 @@ new OpenAI({
 | Function calling | 是 | 工具由 OpenAI function tool schema 暴露 |
 | `function_call_output` | 是 | 工具结果通过该输入类型回传 |
 | `previous_response_id` | 是 | 同一任务的后续轮次用它串联 |
-| Streaming | 否 | 当前版本尚未启用 |
+| Streaming | 是 | 监听 `response.output_text.delta` 并发出 `assistant_delta` |
 
 `chat_completions` runner 依赖以下能力：
 
@@ -90,9 +93,32 @@ new OpenAI({
 | Chat Completions API | 是 | 使用 `client.chat.completions.create(...)` |
 | Tool calls | 是 | 使用 `tools` 与 `tool_calls` |
 | Tool role message | 是 | 工具结果通过 `role: "tool"` 回传 |
-| Streaming | 否 | 当前版本尚未启用 |
+| Streaming | 是 | 解析 streaming chunk 中的 `delta.content` 与 `delta.tool_calls` |
 
 因此，多厂商支持的准确边界是：支持所选 provider adapter 所需能力的模型服务。DeepSeek 当前使用 Anthropic-compatible adapter，以规避 OpenAI-compatible 工具续轮中的 `reasoning_content` 回传问题。
+
+Anthropic Messages runner 同样使用流式接口，解析 `text_delta` 输出文本，解析 `input_json_delta` 累积工具参数。
+
+## Web HTTP 接口
+
+Web 入口位于 `src/app/web/server.ts`，默认监听 `http://localhost:4173`。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/` | 返回 Web 对话界面 |
+| `GET` | `/api/state` | 返回当前 session、连接、消息和活动 |
+| `GET` | `/api/events` | SSE 事件流 |
+| `POST` | `/api/message` | 提交用户消息 |
+
+`POST /api/message` 请求体：
+
+```json
+{
+  "message": "查一下 Albert Einstein 的出生年份，然后算一下他活了多少岁"
+}
+```
+
+`GET /api/events` 会发送 `agent` 事件，事件体与 `src/agent/events.ts` 中的 `AgentEvent` 一致。
 
 ## 工具定义接口
 
@@ -260,7 +286,7 @@ export type ToolContext = {
 | --- | --- |
 | `session_started` | 会话启动 |
 | `user_message` | 用户输入 |
-| `assistant_delta` | Agent 增量文本，当前预留 |
+| `assistant_delta` | Agent 增量文本，用于 TUI 和 Web 流式输出 |
 | `assistant_message` | Agent 最终文本 |
 | `tool_call_started` | 工具调用开始 |
 | `tool_call_finished` | 工具调用完成 |
@@ -270,8 +296,31 @@ export type ToolContext = {
 这些事件用于：
 
 - 更新 TUI 活动区。
+- 更新 Web 消息区和活动区。
 - 写入 transcript。
-- 后续扩展流式输出和调试面板。
+
+## 记忆接口
+
+源码位置：`src/memory/memory-store.ts`
+
+| 方法 | 说明 |
+| --- | --- |
+| `search(query, limit)` | 按关键词召回长期记忆 |
+| `rememberConversation(userInput, assistantOutput)` | 将一轮问答摘要追加到长期记忆 |
+| `getShortTermMemory(messages, limit)` | 获取当前 session 最近消息 |
+| `createMemoryContextPrompt(context)` | 将短期和长期记忆格式化为模型上下文 |
+
+长期记忆记录格式：
+
+```json
+{
+  "id": "...",
+  "createdAt": "2026-05-23T00:00:00.000Z",
+  "source": "conversation",
+  "summary": "User asked: ... | Assistant answered: ...",
+  "keywords": ["deepseek", "reasoning"]
+}
+```
 
 ## Transcript 记录格式
 

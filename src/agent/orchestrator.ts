@@ -1,6 +1,11 @@
 import type { EventBus } from "./events.js";
 import type { AgentSession } from "./session.js";
 import type { AgentRuntime } from "./runtime.js";
+import {
+  createMemoryContextPrompt,
+  getShortTermMemory,
+  type MemoryStore,
+} from "../memory/memory-store.js";
 import type { TranscriptStore } from "../storage/transcript-store.js";
 
 export type AgentOrchestratorOptions = {
@@ -8,6 +13,7 @@ export type AgentOrchestratorOptions = {
   runtime: AgentRuntime;
   eventBus: EventBus;
   transcriptStore?: TranscriptStore;
+  memoryStore?: MemoryStore;
 };
 
 export class AgentOrchestrator {
@@ -19,6 +25,14 @@ export class AgentOrchestrator {
     if (!trimmed) {
       return;
     }
+
+    const shortTerm = getShortTermMemory(this.options.session.messages);
+    const longTerm = await this.options.memoryStore?.search(trimmed);
+    const memoryPrompt = createMemoryContextPrompt({
+      shortTerm,
+      longTerm: longTerm ?? [],
+    });
+    const runnerInput = memoryPrompt ? `${memoryPrompt}\n\nCurrent user request:\n${trimmed}` : trimmed;
 
     this.options.session.addUserMessage(trimmed);
     await this.options.transcriptStore?.append({
@@ -35,7 +49,7 @@ export class AgentOrchestrator {
     });
 
     try {
-      const finalText = await this.options.runtime.getRunner().run(trimmed, (event) => {
+      const finalText = await this.options.runtime.getRunner().run(runnerInput, (event) => {
         this.options.session.applyEvent(event);
         this.options.eventBus.emit(event);
         void this.options.transcriptStore?.append({
@@ -46,7 +60,6 @@ export class AgentOrchestrator {
         });
       });
 
-      this.options.session.addAssistantMessage(finalText);
       await this.options.transcriptStore?.append({
         kind: "message",
         sessionId: this.options.session.id,
@@ -54,6 +67,7 @@ export class AgentOrchestrator {
         role: "assistant",
         content: finalText,
       });
+      await this.options.memoryStore?.rememberConversation(trimmed, finalText);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const event = {

@@ -13,14 +13,24 @@ copy .env.example .env
 corepack pnpm dev
 ```
 
+Web 界面：
+
+```bash
+corepack pnpm web
+```
+
+默认访问 `http://localhost:4173`。
+
 `.env` 现在只作为首次启动 fallback。启动后推荐用 `/connect` 交互式配置模型后端，用 `/model` 查看或切换已配置模型。配置会保存到 `.blackpearl/connections.json`。
 
 ## 当前能力
 
 - 终端 TUI 对话入口
-- OpenAI Responses API / Chat Completions / Anthropic Messages API 工具调用循环
+- Web 对话入口，支持 SSE 流式输出
+- OpenAI Responses API / Chat Completions / Anthropic Messages API 流式工具调用循环
 - 工具注册表
 - 计算器、Wikipedia 查询、工作区文件读取、受限文件写入
 - 本地会话记录
+- 短期记忆和 JSONL 长期记忆
 - `/connect` provider 配置
 - `/model` 模型切换
