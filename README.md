@@ -10,40 +10,53 @@
 
 ## 快速开始
 
+### 环境要求
+
+| 依赖 | 版本 | 说明 |
+| --- | --- | --- |
+| Node.js | ≥ 20 | 运行时 |
+| pnpm | 10.12.1 | 由 Corepack 自动管理 |
+| Git | 任意 | 克隆仓库 |
+
+*若环境不满足，请访问[Node.js官网](https://nodejs.org/zh-cn)了解更多。若已有Node.js环境，可用 `npm install -g corepack`安装 `corepack` 并激活。*
+
+### Windows
+
+```powershell
+# 克隆仓库
+git clone https://github.com/pirate-608/ai-group-work.git
+cd ai-group-work
+
+# 安装依赖并启动
+corepack enable          # 首次需要管理员权限
+corepack pnpm install
+copy .env.example .env
+corepack pnpm dev        # 启动 TUI
+```
+
+### macOS / Linux
+
 ```bash
 # 克隆仓库
 git clone https://github.com/pirate-608/ai-group-work.git
 cd ai-group-work
 
-# 安装依赖并启动（需要本地node.js环境）
-corepack enable          # 需要管理员权限
-corepack pnpm install    
-copy .env.example .env
-corepack pnpm dev
+# 安装依赖并启动
+corepack enable          # 首次需要 sudo
+corepack pnpm install
+cp .env.example .env
+corepack pnpm dev        # 启动 TUI
 ```
 
-执行 /connect 命令，可交互式配置模型 provider
-
-Web 界面：
+### Web 界面（全平台通用）
 
 ```bash
 corepack pnpm web
 ```
 
-同样执行 /connect 命令，可在web界面交互式配置模型 provider
-
 默认访问 `http://localhost:4173`。
 
-> **注意**：项目运行在源码模式，使用 `tsx` 直接执行 TypeScript，无需编译。
-
-## 环境要求
-
-| 依赖 | 建议版本 |
-| --- | --- |
-| Node.js | 20 或更高 |
-| Corepack | 随 Node.js 提供 |
-| pnpm | 10.12.1（Corepack 自动管理） |
-| Git | 任意版本 |
+> **注意**：项目使用 `tsx` 直接执行 TypeScript 源码，无需编译。`.env` 仅作首次启动 fallback，推荐在 TUI 或 Web 界面中使用 `/connect` 交互式配置模型后端。
 
 ## 配置模型后端
 
@@ -91,6 +104,43 @@ corepack pnpm web       # 启动 Web 界面
 corepack pnpm build     # TypeScript 编译
 corepack pnpm test      # 运行 Vitest 测试
 corepack pnpm lint      # TypeScript 类型检查
+```
+
+## 全局命令（可选）
+
+编译后将项目目录加入 PATH，即可在**任意目录**使用 `blackpearl` 命令。项目提供平台原生启动脚本：`blackpearl.cmd`（Windows）和 `blackpearl`（macOS / Linux），自动选择已编译的 JS 或通过 `tsx` 运行源码。
+
+### 第一步：编译
+
+```bash
+corepack pnpm build
+```
+
+### 第二步：加入 PATH
+
+=== "Windows"
+    **PowerShell（管理员）：**
+    ```powershell
+    [Environment]::SetEnvironmentVariable("Path", $env:Path + ";D:\projects\agent-project", "User")
+    ```
+    或通过 GUI：系统属性 → 环境变量 → 用户 Path → 添加项目路径。
+
+=== "macOS / Linux"
+    ```bash
+    # 添加到 ~/.bashrc 或 ~/.zshrc
+    echo 'export PATH="$PATH:/path/to/ai-group-work"' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+
+### 使用
+
+重启终端后，任意目录下：
+
+```bash
+blackpearl                  # 当前目录启动 TUI（会保存 .blackpearl 等配置到当前目录）
+blackpearl web              # 当前目录启动 Web UI
+blackpearl --resume <id>    # 恢复指定 ID 的会话
+blackpearl --help           # 查看命令帮助
 ```
 
 ## 当前能力

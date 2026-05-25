@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check Node.js is available
+if ! command -v node &>/dev/null; then
+    echo "Error: Node.js is not installed or not in PATH." >&2
+    exit 1
+fi
+
+# Run compiled JS if available, otherwise use tsx to run TS source directly
+if [ -f "$DIR/dist/cli.js" ]; then
+    exec node "$DIR/dist/cli.js" "$@"
+elif command -v npx &>/dev/null && [ -f "$DIR/src/cli.ts" ]; then
+    exec npx tsx "$DIR/src/cli.ts" "$@"
+else
+    echo "Project not built and tsx not available. Run: corepack pnpm build" >&2
+    exit 1
+fi

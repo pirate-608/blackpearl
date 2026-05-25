@@ -60,7 +60,7 @@ if (help) {
 }
 
 if (mode === "web") {
-  // Web mode: dynamic import starts the server automatically
+  // Web mode: dynamic import to avoid loading React/Ink
   if (resumeId) {
     process.env.BLACKPEARL_RESUME_ID = resumeId;
   }

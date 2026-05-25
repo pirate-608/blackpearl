@@ -49,6 +49,30 @@ tsx src/cli.ts --help         # 查看用法
 tsx src/cli.ts --resume <id>  # 恢复会话
 ```
 
+## 全局命令（可选）
+
+编译后将项目目录加入系统 PATH，即可在任意目录下使用 `blackpearl` 命令：
+
+```powershell
+# 1. 编译 TypeScript
+corepack pnpm build
+
+# 2. 将项目目录加入用户 PATH（管理员 PowerShell）
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";D:\projects\agent-project", "User")
+```
+
+关闭并重新打开终端后生效：
+
+```powershell
+cd D:\other-project
+blackpearl                  # 启动 TUI
+blackpearl web              # 启动 Web UI
+blackpearl --resume <id>    # 恢复会话
+blackpearl --help           # 查看帮助
+```
+
+原理：项目根目录下的 `blackpearl.cmd`（Windows）和 `blackpearl`（Linux/macOS）脚本会自动调用 `node dist/cli.js`。
+
 ## 配置环境变量
 
 复制示例配置：
