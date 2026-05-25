@@ -2,6 +2,7 @@ import { EXECUTOR_PROMPT, PLANNER_PROMPT } from "./prompts.js";
 import type { EventBus } from "./events.js";
 import type { AgentSession } from "./session.js";
 import type { AgentRuntime } from "./runtime.js";
+import type { AgentRunner } from "../llm/types.js";
 import {
   createMemoryContextPrompt,
   getShortTermMemory,
@@ -12,6 +13,7 @@ import type { TranscriptStore } from "../storage/transcript-store.js";
 export type MultiAgentOrchestratorOptions = {
   session: AgentSession;
   runtime: AgentRuntime;
+  createSubagentRunner?: () => AgentRunner;
   eventBus: EventBus;
   transcriptStore?: TranscriptStore;
   memoryStore?: MemoryStore;
@@ -41,6 +43,8 @@ export class MultiAgentOrchestrator {
     });
 
     this.options.eventBus.emit({ type: "user_message", content: trimmed });
+    const subagentRunner =
+      this.options.createSubagentRunner?.() ?? this.options.runtime.getRunner();
 
     try {
       // Phase 1: Create plan
@@ -48,7 +52,7 @@ export class MultiAgentOrchestrator {
         ? `${memoryPrompt}\n\nCreate a step-by-step plan for this request:\n${trimmed}`
         : `Create a step-by-step plan for this request:\n${trimmed}`;
 
-      const planText = await this.options.runtime.getRunner().run(planInput, (event) => {
+      const planText = await subagentRunner.run(planInput, (event) => {
         this.options.session.applyEvent(event);
         this.options.eventBus.emit(event);
       }, { instructions: PLANNER_PROMPT, tools: [], maxSteps: 1 });
@@ -77,7 +81,7 @@ export class MultiAgentOrchestrator {
         const context = buildStepContext(steps, stepResults, i);
         const stepInput = `Execute this step${context}:\n${step}`;
 
-        const result = await this.options.runtime.getRunner().run(stepInput, (event) => {
+        const result = await subagentRunner.run(stepInput, (event) => {
           this.options.session.applyEvent(event);
           this.options.eventBus.emit(event);
         }, { instructions: EXECUTOR_PROMPT });
@@ -95,7 +99,7 @@ export class MultiAgentOrchestrator {
 
       // Phase 3: Summarize
       const summaryInput = buildSummaryInput(trimmed, steps, stepResults);
-      const finalText = await this.options.runtime.getRunner().run(summaryInput, (event) => {
+      const finalText = await subagentRunner.run(summaryInput, (event) => {
         this.options.session.applyEvent(event);
         this.options.eventBus.emit(event);
       }, { tools: [], maxSteps: 1 });

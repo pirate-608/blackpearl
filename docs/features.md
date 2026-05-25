@@ -23,7 +23,7 @@ Agent 支持两种 OpenAI-compatible runner：
 
 Claude 使用 Anthropic Messages API 单独适配。DeepSeek 也使用其官方推荐的 Anthropic-compatible endpoint，以避免 thinking 模式下 `reasoning_content` 回传兼容问题。
 
-默认可连接 OpenAI API，也可通过 `OPENAI_BASE_URL` 指向第三方模型服务。runner 使用流式 API 接收文本增量，并把增量转成统一的 `assistant_delta` 事件。一次用户请求会进入串行循环：
+默认可连接 OpenAI API，也可通过 `BLACKPEARL_BASE_URL` 指向第三方模型服务。runner 使用流式 API 接收文本增量，并把增量转成统一的 `assistant_delta` 事件。一次用户请求会进入串行循环：
 
 1. 将用户输入发送给模型。
 2. 如果模型返回普通文本，作为最终回答展示。
@@ -61,6 +61,8 @@ Web 界面同样支持完整的 `/` 命令系统：输入 `/` 显示命令下拉
 
 此模式适合需要多步推理和工具组合的复杂任务，例如"查一下爱因斯坦的出生年份，然后算他活了多少岁"。
 
+多 Agent 支持单独配置子智能体模型：`BLACKPEARL_SUBAGENT_MODEL`。当前实现只覆盖模型名，不覆盖 provider、API key 或 base URL，因此它适用于同一厂商、同一 base URL 下的模型分工，例如主 Agent 使用强模型，规划/执行子 Agent 使用同厂商更低成本模型。
+
 ### 短期记忆与长期记忆
 
 Agent 在每次处理用户输入前会构建记忆上下文：
@@ -76,17 +78,26 @@ Agent 在每次处理用户输入前会构建记忆上下文：
 | --- | --- | --- | --- |
 | `calculator` | 安全计算数学表达式 | `expression` | 表达式与计算结果 |
 | `wiki_search` | 查询 Wikipedia 页面摘要 | `query`, `lang` | 标题、摘要、链接 |
-| `file_read` | 读取工作区内 UTF-8 文本文件 | `path`, `maxChars` | 文件内容、截断信息 |
-| `file_write` | 写入 UTF-8 文本文件 | `path`, `content` | 写入路径和字节数 |
+| `file_list` | 列出工作区文件和目录 | `path`, `recursive` | 文件路径、类型和大小 |
+| `file_read` | 读取工作区内 UTF-8 文本文件 | `path`, `offset`, `maxChars` | 文件内容、截断信息 |
+| `file_search` | 在文本文件中搜索字面量 | `query`, `path` | 匹配文件、行号和片段 |
+| `file_edit` | 精确替换单个文本块 | `path`, `oldText`, `newText` | 替换位置和字节数 |
+| `file_write` | 创建、覆盖或追加 UTF-8 文本文件 | `path`, `content`, `mode` | 写入路径、模式和字节数 |
+| `shell_command` | 在工作区内执行非交互命令 | `command`, `args`, `cwd` | 退出码、stdout、stderr |
 
 ### 路径安全约束
 
-文件工具只允许访问工作区内路径。`file_write` 进一步限制写入目录：
+文件工具只允许访问工作区内路径。为避免误读密钥或改坏生成产物，默认跳过或阻止以下路径：
 
-- `artifacts/`
-- `notes/`
+- `.git/`
+- `.blackpearl/`
+- `node_modules/`
+- `dist/`
+- `site/`
+- `.venv/`
+- `.env` 和 `.env.*`
 
-这避免模型把内容写入项目外部路径，也方便集中管理演示产物。
+`shell_command` 不通过 shell 执行命令，因此不支持管道、重定向和命令连接符。它还会阻止 `rm`、`del`、`cmd`、`powershell`、`sudo` 等高风险命令。该工具适合运行 `git status`、`node --version`、`corepack pnpm test`、`corepack pnpm lint` 等非交互式命令。
 
 ### 会话记录
 
@@ -116,7 +127,7 @@ Agent 在每次处理用户输入前会构建记忆上下文：
 - OpenAI runner 还缺少 mock 集成测试。
 - 长期记忆是关键词检索，不是 embeddings 检索，也没有记忆删除/编辑 UI。
 - Wikipedia 工具依赖公网访问，网络不可用时会失败或返回错误状态。
-- `file_write` 当前没有二次确认机制，依赖目录白名单进行控制。
+- 文件写入和命令执行当前没有二次确认机制，依赖工作区边界、敏感路径阻止和命令黑名单进行控制。
 
 ## 适合作业展示的亮点
 

@@ -106,42 +106,9 @@ corepack pnpm test      # 运行 Vitest 测试
 corepack pnpm lint      # TypeScript 类型检查
 ```
 
-## 全局命令（可选）
+## 运行策略说明
 
-编译后将项目目录加入 PATH，即可在**任意目录**使用 `blackpearl` 命令。项目提供平台原生启动脚本：`blackpearl.cmd`（Windows）和 `blackpearl`（macOS / Linux），自动选择已编译的 JS 或通过 `tsx` 运行源码。
-
-### 第一步：编译
-
-```bash
-corepack pnpm build
-```
-
-### 第二步：加入 PATH
-
-=== "Windows"
-    **PowerShell（管理员）：**
-    ```powershell
-    [Environment]::SetEnvironmentVariable("Path", $env:Path + ";D:\projects\agent-project", "User")
-    ```
-    或通过 GUI：系统属性 → 环境变量 → 用户 Path → 添加项目路径。
-
-=== "macOS / Linux"
-    ```bash
-    # 添加到 ~/.bashrc 或 ~/.zshrc
-    echo 'export PATH="$PATH:/path/to/ai-group-work"' >> ~/.bashrc
-    source ~/.bashrc
-    ```
-
-### 使用
-
-重启终端后，任意目录下：
-
-```bash
-blackpearl                  # 当前目录启动 TUI（会保存 .blackpearl 等配置到当前目录）
-blackpearl web              # 当前目录启动 Web UI
-blackpearl --resume <id>    # 恢复指定 ID 的会话
-blackpearl --help           # 查看命令帮助
-```
+当前项目保持源码运行方式，使用 `tsx` 直接执行 TypeScript。曾尝试打包为独立命令行工具，但由于入口和 Web/TUI 模块使用顶层 `await`，不同打包方案存在兼容性问题。现阶段将 `corepack pnpm dev` 与 `corepack pnpm web` 作为稳定运行入口，`corepack pnpm build` 主要用于类型检查和编译验证。
 
 ## 当前能力
 
@@ -149,7 +116,7 @@ blackpearl --help           # 查看命令帮助
 - Web 对话入口，支持 SSE 流式输出
 - OpenAI Responses API / Chat Completions / Anthropic Messages API 流式工具调用循环
 - 工具注册表
-- 计算器、Wikipedia 查询、工作区文件读取、受限文件写入
+- 计算器、Wikipedia 查询、工作区文件读写、文本搜索、精确替换和受控命令行执行
 - 本地会话记录
 - 短期记忆和 JSONL 长期记忆
 - `/connect` provider 配置

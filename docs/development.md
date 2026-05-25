@@ -66,11 +66,23 @@ export const exampleTool = createToolDefinition({
 registry.register(exampleTool);
 ```
 
+### Coding 工具安全约束
+
+当前内置的文件和命令行工具遵循以下约束：
+
+- 所有文件路径必须位于 `workspaceRoot` 内。
+- 文件读取会阻止 `.git/`、`.blackpearl/` 和 `.env` 等敏感路径。
+- 文件写入会阻止 `.git/`、`.blackpearl/`、`node_modules/`、`dist/`、`site/`、`.venv/`、`.env` 等路径。
+- `file_edit` 要求 `oldText` 精确出现一次，避免误改多个位置。
+- `shell_command` 使用 `execFile`，不经过 shell，不支持管道、重定向或命令连接符。
+- `shell_command` 默认 10 秒超时，最大 30 秒，并截断过长输出。
+
 ## 测试策略
 
 当前已有测试：
 
 - `src/tools/calculator.test.ts`
+- `src/tools/coding-tools.test.ts`
 - `src/memory/memory-store.test.ts`
 - `src/llm/connection-store.test.ts`
 - `src/llm/providers.test.ts`
@@ -80,8 +92,10 @@ registry.register(exampleTool);
 
 | 测试对象 | 建议覆盖 |
 | --- | --- |
-| `file_read` | 正常读取、路径逃逸、截断 |
-| `file_write` | 白名单目录、非法目录、自动建目录 |
+| `file_read` | 正常读取、路径逃逸、截断、敏感路径 |
+| `file_write` | create/overwrite/append、非法目录、自动建目录 |
+| `file_edit` | 精确替换、重复匹配、未命中 |
+| `shell_command` | 成功命令、失败命令、超时、高风险命令阻止 |
 | `ToolRegistry` | 未知工具、参数错误、重复注册 |
 | `ResponseRunner` | mock function call、tool output 回传、max steps |
 | `MultiAgentOrchestrator` | 计划解析、步骤执行、汇总形成 |

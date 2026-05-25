@@ -44,6 +44,7 @@ src/
 9. 创建 `MemoryStore`。
 10. 创建 `AgentOrchestrator`。
 11. 创建 `MultiAgentOrchestrator`。
+12. 创建可按当前连接派生的 subagent runner，用于 `BLACKPEARL_SUBAGENT_MODEL` 覆盖。
 
 入口只做组装，不承载工具逻辑或模型调用细节。
 
@@ -123,7 +124,7 @@ LLM 层位于 `src/llm/`。
 
 ### `openai-client.ts`
 
-只负责创建 OpenAI SDK client。该 client 默认连接 OpenAI API，也可以通过 `OPENAI_BASE_URL` 指向 OpenAI-compatible 的第三方模型服务。
+只负责创建 OpenAI SDK client。该 client 默认连接 OpenAI API，也可以通过 `BLACKPEARL_BASE_URL` 指向 OpenAI-compatible 的第三方模型服务。
 
 ### `providers.ts`
 
@@ -241,12 +242,13 @@ LLM 层位于 `src/llm/`。
   -> App.handleSubmit (detects /plan)
   -> MultiAgentOrchestrator.handleUserInput
   -> MemoryStore.search
-  -> Phase 1: ProviderRunner.run (PLANNER_PROMPT, no tools)
+  -> Build subagent runner from current provider/base URL and optional BLACKPEARL_SUBAGENT_MODEL
+  -> Phase 1: SubagentRunner.run (PLANNER_PROMPT, no tools)
   -> plan_created event
   -> Phase 2: for each step:
-       ProviderRunner.run (EXECUTOR_PROMPT, with tools)
+       SubagentRunner.run (EXECUTOR_PROMPT, with tools)
        -> step_started / step_completed events
-  -> Phase 3: ProviderRunner.run (summarize, no tools)
+  -> Phase 3: SubagentRunner.run (summarize, no tools)
   -> assistant_message event
   -> AgentSession / TranscriptStore / MemoryStore / TUI or Web
 ```

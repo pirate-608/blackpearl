@@ -11,9 +11,9 @@
 | `corepack pnpm install` | 安装 Node 依赖 |
 | `corepack pnpm dev` | 以 tsx 运行 TUI 开发入口 |
 | `corepack pnpm web` | 启动本地 Web 界面 |
-| `corepack pnpm build` | 执行 TypeScript 编译 |
-| `corepack pnpm start` | 运行 `dist/index.js` |
-| `corepack pnpm start:web` | 运行编译后的 Web 入口 |
+| `corepack pnpm build` | 执行 TypeScript 编译，主要用于验证 |
+| `corepack pnpm start` | 运行 `dist/index.js`，实验性入口 |
+| `corepack pnpm start:web` | 运行编译后的 Web 入口，实验性入口 |
 | `corepack pnpm test` | 运行 Vitest 测试 |
 | `corepack pnpm lint` | 执行 TypeScript noEmit 检查 |
 
@@ -44,15 +44,17 @@
 | 变量 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `BLACKPEARL_PROVIDER` | provider id | `openai` | 初始后端 |
-| `OPENAI_API_KEY` | string | 无 | OpenAI SDK API Key；第三方兼容服务通常也使用这个字段承载密钥 |
-| `OPENAI_BASE_URL` | string | SDK 默认 OpenAI 地址 | OpenAI-compatible API base URL |
-| `OPENAI_MODEL` | string | `gpt-4.1-mini` | Responses API 模型 |
-| `OPENAI_API_MODE` | `responses` 或 `chat_completions` | `responses` | LLM runner 适配模式 |
+| `BLACKPEARL_API_KEY` | string | 无 | 当前 provider 使用的 API Key |
+| `BLACKPEARL_BASE_URL` | string | provider 默认地址 | 模型服务 base URL |
+| `BLACKPEARL_MODEL` | string | `gpt-4.1-mini` | 主 Agent 模型 |
+| `BLACKPEARL_SUBAGENT_MODEL` | string | 同主模型 | 多 Agent 规划、执行、汇总阶段使用的模型；当前与主 Agent 同 provider、同 base URL |
+| `BLACKPEARL_API_MODE` | `responses` 或 `chat_completions` | `responses` | LLM runner 适配模式 |
 | `AGENT_MAX_STEPS` | number | `6` | 单次任务最大循环步数 |
 | `BLACKPEARL_WEB_PORT` | number | `4173` | Web 界面监听端口 |
 
 `AGENT_MAX_STEPS` 会通过 `Number.parseInt` 解析；解析失败时使用 `6`。
-`OPENAI_API_MODE` 只接受 `responses` 和 `chat_completions`；其他值会回退到 `responses`。
+`BLACKPEARL_API_MODE` 只接受 `responses` 和 `chat_completions`；其他值会回退到 `responses`。
+历史变量 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`、`OPENAI_API_MODE` 仍作为 fallback 读取，优先级低于 `BLACKPEARL_*`。
 
 ## 模型服务接口
 
@@ -70,12 +72,12 @@ OpenAI-compatible provider 通过 OpenAI SDK 创建 client：
 
 ```ts
 new OpenAI({
-  apiKey: config.openaiApiKey,
-  baseURL: config.openaiBaseUrl,
+  apiKey: config.apiKey,
+  baseURL: config.baseUrl,
 });
 ```
 
-当 `OPENAI_BASE_URL` 为空时，SDK 使用默认 OpenAI API 地址。当它被设置时，请求会发往指定的 OpenAI-compatible API。
+当 `BLACKPEARL_BASE_URL` 为空时，SDK 使用默认 API 地址或 provider 默认地址。当它被设置时，请求会发往指定的模型服务。
 
 `responses` runner 依赖以下能力：
 
@@ -265,13 +267,15 @@ export type ToolContext = {
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- | --- |
 | `path` | string | 是 | 无 | 工作区相对路径 |
-| `maxChars` | number | 否 | `4000` | 最大返回字符数，最大 `12000` |
+| `offset` | number | 否 | `0` | 字符读取起点 |
+| `maxChars` | number | 否 | `8000` | 最大返回字符数，最大 `20000` |
 
 输出：
 
 ```json
 {
   "path": "docs/raw-instruction.md",
+  "offset": 0,
   "content": "...",
   "truncated": false,
   "totalChars": 2882
@@ -281,7 +285,89 @@ export type ToolContext = {
 安全策略：
 
 - 使用 `path.resolve` 和 `path.relative` 确认目标路径位于工作区内。
-- 超出工作区时抛出 `ToolExecutionError`。
+- 阻止读取 `.git/`、`.blackpearl/`、`.env` 等敏感路径。
+- 超出工作区或命中敏感路径时抛出 `ToolExecutionError`。
+
+### `file_list`
+
+用途：列出工作区文件和目录。
+
+输入：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `path` | string | 否 | `.` | 工作区相对目录 |
+| `recursive` | boolean | 否 | `false` | 是否递归列出 |
+| `maxEntries` | number | 否 | `120` | 最大返回数量，最大 `500` |
+
+输出：
+
+```json
+{
+  "path": "src/tools",
+  "recursive": false,
+  "entries": [
+    {
+      "path": "src/tools/file-read.ts",
+      "type": "file",
+      "bytes": 1024
+    }
+  ],
+  "truncated": false
+}
+```
+
+### `file_search`
+
+用途：在工作区文本文件中搜索字面量。
+
+输入：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `query` | string | 是 | 无 | 搜索文本 |
+| `path` | string | 否 | `.` | 搜索目录或文件 |
+| `caseSensitive` | boolean | 否 | `false` | 是否区分大小写 |
+| `maxMatches` | number | 否 | `50` | 最大匹配数，最大 `200` |
+
+输出：
+
+```json
+{
+  "query": "file_write",
+  "matches": [
+    {
+      "path": "src/tools/file-write.ts",
+      "line": 17,
+      "text": "name: \"file_write\","
+    }
+  ],
+  "truncated": false
+}
+```
+
+### `file_edit`
+
+用途：对工作区文本文件做精确替换。
+
+输入：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `path` | string | 是 | 工作区相对路径 |
+| `oldText` | string | 是 | 要替换的精确文本，必须只出现一次 |
+| `newText` | string | 是 | 替换文本 |
+
+输出：
+
+```json
+{
+  "path": "src/example.ts",
+  "replacedAt": 42,
+  "oldBytes": 11,
+  "newBytes": 11
+}
+```
 
 ### `file_write`
 
@@ -289,25 +375,67 @@ export type ToolContext = {
 
 输入：
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `path` | string | 是 | 工作区相对输出路径 |
-| `content` | string | 是 | 写入内容 |
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `path` | string | 是 | 无 | 工作区相对输出路径 |
+| `content` | string | 是 | 无 | 写入内容 |
+| `mode` | `create` / `overwrite` / `append` | 否 | `create` | 写入模式 |
 
 输出：
 
 ```json
 {
   "path": "artifacts/homework-summary.md",
+  "mode": "create",
   "bytes": 128
 }
 ```
 
 安全策略：
 
-- 只能写入 `artifacts/` 或 `notes/`。
 - 路径仍必须位于工作区内。
+- 阻止写入 `.git/`、`.blackpearl/`、`node_modules/`、`dist/`、`site/`、`.venv/`、`.env` 等路径。
 - 写入前自动创建父目录。
+
+### `shell_command`
+
+用途：在工作区内执行非交互式命令。
+
+输入：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `command` | string | 是 | 无 | 可执行命令名，不允许 shell 表达式 |
+| `args` | string[] | 否 | `[]` | 命令参数 |
+| `cwd` | string | 否 | `.` | 工作区相对工作目录 |
+| `timeoutMs` | number | 否 | `10000` | 超时时间，最大 `30000` |
+
+输出：
+
+```json
+{
+  "command": "corepack pnpm test",
+  "cwd": ".",
+  "exitCode": 0,
+  "stdout": {
+    "content": "...",
+    "truncated": false,
+    "totalChars": 1200
+  },
+  "stderr": {
+    "content": "",
+    "truncated": false,
+    "totalChars": 0
+  }
+}
+```
+
+安全策略：
+
+- 使用 `execFile`，不经过 shell。
+- 参数中阻止管道、重定向、命令连接符和换行。
+- 阻止 `rm`、`del`、`cmd`、`powershell`、`pwsh`、`sudo` 等高风险命令。
+- 工作目录必须位于工作区内。
 
 ## Agent 事件接口
 

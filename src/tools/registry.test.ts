@@ -5,9 +5,10 @@ import { createDefaultToolRegistry } from "./index.js";
 describe("ToolRegistry schema generation", () => {
   it("emits JSON Schema compatible numeric bounds for file_read", () => {
     const registry = createDefaultToolRegistry({
-      openaiApiKey: undefined,
-      openaiBaseUrl: undefined,
-      openaiModel: "test-model",
+      apiKey: undefined,
+      baseUrl: undefined,
+      model: "test-model",
+      subagentModel: undefined,
       provider: "deepseek",
       apiMode: "chat_completions",
       maxSteps: 6,
@@ -33,6 +34,30 @@ describe("ToolRegistry schema generation", () => {
     };
 
     expect(parameters.properties?.maxChars?.exclusiveMinimum).toBe(0);
-    expect(parameters.properties?.maxChars?.maximum).toBe(12000);
+    expect(parameters.properties?.maxChars?.maximum).toBe(20000);
+  });
+
+  it("registers coding agent tools", () => {
+    const registry = createDefaultToolRegistry({
+      apiKey: undefined,
+      baseUrl: undefined,
+      model: "test-model",
+      subagentModel: undefined,
+      provider: "openai",
+      apiMode: "responses",
+      maxSteps: 6,
+      workspaceRoot: process.cwd(),
+    });
+
+    expect(registry.list().map((tool) => tool.name)).toEqual([
+      "calculator",
+      "wiki_search",
+      "file_list",
+      "file_read",
+      "file_search",
+      "file_edit",
+      "file_write",
+      "shell_command",
+    ]);
   });
 });

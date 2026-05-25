@@ -3,8 +3,9 @@ import { AgentOrchestrator } from "./agent/orchestrator.js";
 import { AgentRuntime } from "./agent/runtime.js";
 import { AgentSession } from "./agent/session.js";
 import { ConnectionStore } from "./llm/connection-store.js";
-import type { ModelConnection } from "./llm/providers.js";
+import { getConnectionLabel, type ModelConnection } from "./llm/providers.js";
 import { createRunner } from "./llm/runner-factory.js";
+import type { AgentRunner } from "./llm/types.js";
 import { MemoryStore } from "./memory/memory-store.js";
 import { MultiAgentOrchestrator } from "./agent/multi-agent-orchestrator.js";
 import type { AppConfig } from "./shared/config.js";
@@ -18,6 +19,7 @@ export type AgentAppContext = {
   runtime: AgentRuntime;
   orchestrator: AgentOrchestrator;
   multiAgentOrchestrator: MultiAgentOrchestrator;
+  createSubagentRunner: (connection?: ModelConnection) => AgentRunner;
   connectionStore: ConnectionStore;
   toolRegistry: ReturnType<typeof createDefaultToolRegistry>;
   memoryStore: MemoryStore;
@@ -55,6 +57,7 @@ export async function createAgentAppContext(
   const multiAgentOrchestrator = new MultiAgentOrchestrator({
     session,
     runtime,
+    createSubagentRunner: () => createSubagentRunner(),
     eventBus,
     transcriptStore,
     memoryStore,
@@ -79,8 +82,15 @@ export async function createAgentAppContext(
   eventBus.emit({
     type: "session_started",
     sessionId: session.id,
-    model: activeConnection.model,
+    model: getSessionModelLabel(activeConnection, config.subagentModel),
   });
+  function createSubagentRunner(connection = runtime.getConnection()): AgentRunner {
+    return createRunner({
+      connection: buildSubagentConnection(connection, config.subagentModel),
+      maxSteps: config.maxSteps,
+      toolRegistry,
+    });
+  }
 
   return {
     config,
@@ -89,6 +99,7 @@ export async function createAgentAppContext(
     runtime,
     orchestrator,
     multiAgentOrchestrator,
+    createSubagentRunner,
     connectionStore,
     toolRegistry,
     memoryStore,
@@ -98,17 +109,42 @@ export async function createAgentAppContext(
 function buildFallbackConnection(config: AppConfig): ModelConnection {
   const fallbackConnection: ModelConnection = {
     provider: config.provider,
-    model: config.openaiModel,
+    model: config.model,
     apiMode: config.apiMode,
   };
 
-  if (config.openaiApiKey) {
-    fallbackConnection.apiKey = config.openaiApiKey;
+  if (config.apiKey) {
+    fallbackConnection.apiKey = config.apiKey;
   }
 
-  if (config.openaiBaseUrl) {
-    fallbackConnection.baseUrl = config.openaiBaseUrl;
+  if (config.baseUrl) {
+    fallbackConnection.baseUrl = config.baseUrl;
   }
 
   return fallbackConnection;
+}
+
+function buildSubagentConnection(
+  connection: ModelConnection,
+  subagentModel: string | undefined,
+): ModelConnection {
+  if (!subagentModel) {
+    return connection;
+  }
+
+  return {
+    ...connection,
+    model: subagentModel,
+  };
+}
+
+function getSessionModelLabel(
+  connection: ModelConnection,
+  subagentModel: string | undefined,
+): string {
+  if (!subagentModel || subagentModel === connection.model) {
+    return connection.model;
+  }
+
+  return `${getConnectionLabel(connection)}; subagent:${subagentModel}`;
 }

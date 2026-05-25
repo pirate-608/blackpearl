@@ -4,12 +4,12 @@ import type { AppConfig } from "../shared/config.js";
 export function createOpenAIClient(config: AppConfig): OpenAI {
   const options: ClientOptions = {};
 
-  if (config.openaiApiKey) {
-    options.apiKey = config.openaiApiKey;
+  if (config.apiKey) {
+    options.apiKey = config.apiKey;
   }
 
-  if (config.openaiBaseUrl) {
-    options.baseURL = config.openaiBaseUrl;
+  if (config.baseUrl) {
+    options.baseURL = config.baseUrl;
   }
 
   return new OpenAI(options);
