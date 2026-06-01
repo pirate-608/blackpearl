@@ -85,6 +85,7 @@ if (mode === "web") {
       connectionStore: context.connectionStore,
       eventBus: context.eventBus,
       toolRegistry: context.toolRegistry,
+      skillRegistry: context.skillRegistry,
       config: config,
     }),
   );

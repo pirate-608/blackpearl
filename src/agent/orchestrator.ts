@@ -1,11 +1,14 @@
 import type { EventBus } from "./events.js";
 import type { AgentSession } from "./session.js";
 import type { AgentRuntime } from "./runtime.js";
+import type { RunOptions } from "../llm/types.js";
 import {
   createMemoryContextPrompt,
   getShortTermMemory,
   type MemoryStore,
 } from "../memory/memory-store.js";
+import { AgentAbortedError } from "../shared/errors.js";
+import type { SkillRegistry } from "../skills/skill-registry.js";
 import type { TranscriptStore } from "../storage/transcript-store.js";
 
 export type AgentOrchestratorOptions = {
@@ -14,10 +17,21 @@ export type AgentOrchestratorOptions = {
   eventBus: EventBus;
   transcriptStore?: TranscriptStore;
   memoryStore?: MemoryStore;
+  skillRegistry?: SkillRegistry;
 };
 
 export class AgentOrchestrator {
+  private abortController: AbortController | null = null;
+
   constructor(private readonly options: AgentOrchestratorOptions) {}
+
+  /** Abort the currently running agent execution */
+  abort(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+  }
 
   async handleUserInput(input: string): Promise<void> {
     const trimmed = input.trim();
@@ -48,17 +62,21 @@ export class AgentOrchestrator {
       content: trimmed,
     });
 
+    // Check for skill match
+    const skillOptions = this.buildSkillOptions(trimmed);
+
+    // Set up abort controller for user interrupt
+    this.abortController = new AbortController();
+    const runOptions: RunOptions = {
+      ...(skillOptions ?? {}),
+      signal: this.abortController.signal,
+    };
+
     try {
       const finalText = await this.options.runtime.getRunner().run(runnerInput, (event) => {
         this.options.session.applyEvent(event);
         this.options.eventBus.emit(event);
-        void this.options.transcriptStore?.append({
-          kind: "event",
-          sessionId: this.options.session.id,
-          createdAt: new Date().toISOString(),
-          event,
-        });
-      });
+      }, runOptions);
 
       await this.options.transcriptStore?.append({
         kind: "message",
@@ -69,20 +87,40 @@ export class AgentOrchestrator {
       });
       await this.options.memoryStore?.rememberConversation(trimmed, finalText);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const event = {
-        type: "error" as const,
-        message,
-      };
-
-      this.options.session.addActivity("error", message);
-      this.options.eventBus.emit(event);
-      await this.options.transcriptStore?.append({
-        kind: "event",
-        sessionId: this.options.session.id,
-        createdAt: new Date().toISOString(),
-        event,
-      });
+      if (error instanceof AgentAbortedError) {
+        this.options.session.addActivity("aborted", "User interrupted execution");
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        const event = { type: "error" as const, message };
+        this.options.session.addActivity("error", message);
+        this.options.eventBus.emit(event);
+        await this.options.transcriptStore?.append({
+          kind: "event",
+          sessionId: this.options.session.id,
+          createdAt: new Date().toISOString(),
+          event,
+        });
+      }
+    } finally {
+      this.abortController = null;
     }
+  }
+
+  private buildSkillOptions(input: string): RunOptions | undefined {
+    const skill = this.options.skillRegistry?.match(input);
+    if (!skill) return undefined;
+
+    const options: RunOptions = {
+      instructions: `${skill.instructions}\n\n---\nThe user asked: ${input}`,
+    };
+
+    if (skill.allowedTools && skill.allowedTools.length > 0) {
+      // Build a filtered tool list with only allowed tools
+      this.options.session.addActivity(`skill: ${skill.name}`, skill.allowedTools.join(", "));
+    } else {
+      this.options.session.addActivity(`skill: ${skill.name}`, "activated");
+    }
+
+    return options;
   }
 }

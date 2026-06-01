@@ -6,6 +6,7 @@ export type RunOptions = {
   instructions?: string;
   tools?: Array<{ type: "function"; name: string; description: string; parameters: Record<string, unknown> | null; strict: boolean }>;
   maxSteps?: number;
+  signal?: AbortSignal;
 };
 
 export type AgentRunner = {

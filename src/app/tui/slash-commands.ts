@@ -1,4 +1,4 @@
-export type SlashCommandId = "help" | "tools" | "connect" | "model" | "clear" | "plan" | "exit";
+export type SlashCommandId = "help" | "tools" | "skills" | "connect" | "model" | "clear" | "plan" | "exit";
 
 export type SlashCommand = {
   id: SlashCommandId;
@@ -26,6 +26,11 @@ export const slashCommands: SlashCommand[] = [
     id: "model",
     name: "/model",
     description: "查看或切换模型后端",
+  },
+  {
+    id: "skills",
+    name: "/skills",
+    description: "列出已加载的 Skills",
   },
   {
     id: "clear",

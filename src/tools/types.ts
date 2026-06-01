@@ -14,6 +14,15 @@ export type ToolDefinition<TInput extends z.ZodTypeAny = z.ZodTypeAny> = {
 
 export type AnyToolDefinition = ToolDefinition<z.ZodTypeAny>;
 
+/** A tool registered from an MCP server without a Zod schema */
+export type McpToolDefinition = {
+  name: string;
+  description: string;
+  schema?: undefined;
+  jsonSchema: Record<string, unknown> | null;
+  execute: (input: unknown, context: ToolContext) => Promise<unknown>;
+};
+
 export type ToolExecutionRecord = {
   toolName: string;
   input: unknown;

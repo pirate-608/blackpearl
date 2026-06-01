@@ -6,6 +6,8 @@ import { ConnectionStore } from "./llm/connection-store.js";
 import { getConnectionLabel, type ModelConnection } from "./llm/providers.js";
 import { createRunner } from "./llm/runner-factory.js";
 import type { AgentRunner } from "./llm/types.js";
+import { McpClientManager } from "./mcp/mcp-client.js";
+import { SkillRegistry } from "./skills/skill-registry.js";
 import { MemoryStore } from "./memory/memory-store.js";
 import { MultiAgentOrchestrator } from "./agent/multi-agent-orchestrator.js";
 import type { AppConfig } from "./shared/config.js";
@@ -22,6 +24,8 @@ export type AgentAppContext = {
   createSubagentRunner: (connection?: ModelConnection) => AgentRunner;
   connectionStore: ConnectionStore;
   toolRegistry: ReturnType<typeof createDefaultToolRegistry>;
+  mcpManager: McpClientManager;
+  skillRegistry: SkillRegistry;
   memoryStore: MemoryStore;
 };
 
@@ -32,6 +36,15 @@ export async function createAgentAppContext(
   const session = new AgentSession(sessionId);
   const eventBus = new EventBus();
   const toolRegistry = createDefaultToolRegistry(config);
+
+  // ── MCP: connect to configured servers and register their tools ──
+  const mcpManager = new McpClientManager(config.workspaceRoot, toolRegistry, {
+    workspaceRoot: config.workspaceRoot,
+  });
+  mcpManager.connectAll().catch((err) => {
+    console.warn("[mcp] Background connection error:", err);
+  });
+
   const fallbackConnection = buildFallbackConnection(config);
   const connectionStore = new ConnectionStore(config.workspaceRoot, fallbackConnection);
   await connectionStore.load();
@@ -47,12 +60,20 @@ export async function createAgentAppContext(
   );
   const transcriptStore = new TranscriptStore(config.workspaceRoot, session.id);
   const memoryStore = new MemoryStore(config.workspaceRoot);
+
+  // ── Skills: load SKILL.md files ──
+  const skillRegistry = new SkillRegistry();
+  skillRegistry.loadAll(config.workspaceRoot).catch((err) => {
+    console.warn("[skills] Background load error:", err);
+  });
+
   const orchestrator = new AgentOrchestrator({
     session,
     runtime,
     eventBus,
     transcriptStore,
     memoryStore,
+    skillRegistry,
   });
   const multiAgentOrchestrator = new MultiAgentOrchestrator({
     session,
@@ -61,6 +82,7 @@ export async function createAgentAppContext(
     eventBus,
     transcriptStore,
     memoryStore,
+    skillRegistry,
   });
 
   // Replay transcript messages if resuming an existing session
@@ -102,6 +124,8 @@ export async function createAgentAppContext(
     createSubagentRunner,
     connectionStore,
     toolRegistry,
+    mcpManager,
+    skillRegistry,
     memoryStore,
   };
 }

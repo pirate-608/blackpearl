@@ -8,6 +8,13 @@ export class AgentError extends Error {
   }
 }
 
+export class AgentAbortedError extends AgentError {
+  constructor() {
+    super("Agent execution was aborted by user.");
+    this.name = "AgentAbortedError";
+  }
+}
+
 export class ToolExecutionError extends Error {
   constructor(
     public readonly toolName: string,

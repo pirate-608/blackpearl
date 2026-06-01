@@ -7,7 +7,7 @@ import type {
   ToolUseBlock,
 } from "@anthropic-ai/sdk/resources/messages/messages";
 import { SYSTEM_PROMPT } from "../agent/prompts.js";
-import { AgentError } from "../shared/errors.js";
+import { AgentAbortedError, AgentError } from "../shared/errors.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { AgentRunner, EmitEvent } from "./types.js";
 
@@ -37,6 +37,8 @@ export class ClaudeRunner implements AgentRunner {
     ];
 
     for (let step = 0; step < maxSteps; step++) {
+      if (options?.signal?.aborted) throw new AgentAbortedError();
+
       const response = await createClaudeMessage(
         this.options.client,
         {

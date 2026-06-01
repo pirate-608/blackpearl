@@ -73,10 +73,11 @@ corepack pnpm web
 | `/connect` | 交互式配置模型后端 |
 | `/model` | 查看或切换已配置模型 |
 | `/clear` | 清空当前界面记录 |
+| `/skills` | 列出已加载的 Skills |
 | `/plan` | 多 Agent 协作：规划 Agent 分解任务 → 执行 Agent 逐步完成 |
 | `/exit` | 退出 TUI |
 
-快捷键：输入 `/` 显示命令提示，`↑`/`↓` 选择，`Tab` 补全，`Enter` 执行。
+快捷键：输入 `/` 显示命令提示，`↑`/`↓` 选择，`Tab` 补全，`Enter` 执行。Agent 执行中按 `Esc` 可中断。
 
 ## 推荐演示输入
 
@@ -96,6 +97,42 @@ corepack pnpm web
 把上面的总结写入 artifacts/homework-summary.md
 ```
 
+## Skills 技能系统
+
+在 `.blackpearl/skills/<名称>/SKILL.md` 下创建技能文件，Agent 会根据用户输入自动匹配并激活对应技能。技能可自定义系统提示词和可用工具白名单。
+
+```markdown
+---
+name: code-review
+description: 审查代码、发现 bug、提出改进建议
+allowed-tools: file_read, file_write
+---
+
+你是代码审查专家。审查代码时：
+1. 先理解代码结构和意图
+2. 检查潜在 bug 和边界条件
+3. 将审查结果写入 artifacts/review.md
+```
+
+TUI 中输入 `/skills` 查看已加载的技能列表。
+
+## MCP 工具扩展
+
+支持通过 [Model Context Protocol](https://modelcontextprotocol.org/) 连接外部工具服务器，动态扩展 Agent 能力。将 `.blackpearl/mcp-servers.example.json` 复制为 `mcp-servers.json` 并编辑：
+
+```json
+{
+  "mcpServers": {
+    "time": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-time"]
+    }
+  }
+}
+```
+
+启动后 MCP 工具自动注册到工具注册表，Agent 可直接调用。Web 界面 `/api/state` 会返回当前 MCP 连接状态。
+
 ## 常用命令
 
 ```bash
@@ -106,9 +143,38 @@ corepack pnpm test      # 运行 Vitest 测试
 corepack pnpm lint      # TypeScript 类型检查
 ```
 
+## 全局命令
+
+编译后将项目目录加入 PATH，即可在**任意目录**使用 `blackpearl` 命令：
+
+```powershell
+corepack pnpm build
+```
+
+**Windows** — 管理员 PowerShell：
+```powershell
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";D:\projects\agent-project", "User")
+```
+
+**macOS / Linux** — 添加到 `~/.bashrc`：
+```bash
+echo 'export PATH="$PATH:/path/to/ai-group-work"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+重启终端后：
+```bash
+blackpearl                  # 当前目录启动 TUI
+blackpearl web              # 当前目录启动 Web UI
+blackpearl --resume <id>    # 恢复会话
+blackpearl --help           # 查看帮助
+```
+
+> 原理：项目根目录的 `blackpearl.cmd`（Windows）和 `blackpearl`（macOS/Linux）脚本会自动调用编译后的 JS 或通过 `tsx` 运行源码。
+
 ## 运行策略说明
 
-当前项目保持源码运行方式，使用 `tsx` 直接执行 TypeScript。曾尝试打包为独立命令行工具，但由于入口和 Web/TUI 模块使用顶层 `await`，不同打包方案存在兼容性问题。现阶段将 `corepack pnpm dev` 与 `corepack pnpm web` 作为稳定运行入口，`corepack pnpm build` 主要用于类型检查和编译验证。
+当前项目保持源码运行方式，使用 `tsx` 直接执行 TypeScript。曾尝试打包为独立 .exe，但 Node.js SEA 等工具不支持含顶层 `await` 的 ESM 项目。`blackpearl.cmd` / `blackpearl` 脚本 + PATH 是轻量替代方案。
 
 ## 当前能力
 
@@ -122,6 +188,8 @@ corepack pnpm lint      # TypeScript 类型检查
 - `/connect` provider 配置
 - `/model` 模型切换
 - `/plan` 多 Agent 协作（规划 Agent + 执行 Agent）
-- Web 界面支持 `/` 命令提示、model 切换和 connect 配置
-- 端口冲突自动检测与优雅退出
-- 多 Agent 协作模式：规划 Agent 分解任务 → 执行 Agent 逐步执行 → 汇总
+- `/skills` 技能系统：SKILL.md 自定义提示词 + 工具白名单，关键词自动匹配
+- MCP 协议支持：连接外部工具服务器，动态扩展 Agent 工具集
+- Web 界面支持 `/` 命令提示、model 切换、connect 配置和 Stop 中断
+- `Esc` 中断机制：TUI 按 Esc、Web 点 Stop 按钮，随时终止 Agent 执行
+- 全局命令：`blackpearl` / `blackpearl web` / `--resume`，支持 PATH 安装

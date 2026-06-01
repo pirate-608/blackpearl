@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Text, useApp } from "ink";
+import { Box, Text, useApp, useInput } from "ink";
 import type { AgentOrchestrator } from "../../agent/orchestrator.js";
 import type { MultiAgentOrchestrator } from "../../agent/multi-agent-orchestrator.js";
 import type { AgentRuntime } from "../../agent/runtime.js";
@@ -17,6 +17,7 @@ import {
   type ProviderId,
 } from "../../llm/providers.js";
 import { createRunner } from "../../llm/runner-factory.js";
+import type { SkillRegistry } from "../../skills/skill-registry.js";
 import type { ToolRegistry } from "../../tools/registry.js";
 import { ActivityPane } from "./ActivityPane.js";
 import { ConversationPane } from "./ConversationPane.js";
@@ -36,6 +37,7 @@ type AppProps = {
   connectionStore: ConnectionStore;
   eventBus: EventBus;
   toolRegistry: ToolRegistry;
+  skillRegistry: SkillRegistry;
   config: AppConfig;
 };
 
@@ -60,6 +62,7 @@ export function App({
   connectionStore,
   eventBus,
   toolRegistry,
+  skillRegistry,
   config,
 }: AppProps): JSX.Element {
   const inkApp = useApp();
@@ -76,6 +79,14 @@ export function App({
 
     return unsubscribe;
   }, [eventBus]);
+
+  // Escape key: abort running agent
+  useInput((input, key) => {
+    if (key.escape && isRunning) {
+      orchestrator.abort();
+      multiAgentOrchestrator.abort();
+    }
+  });
 
   const toolNames = useMemo(
     () => toolRegistry.list().map((tool) => tool.name).join(", "),
@@ -124,6 +135,16 @@ export function App({
 
       if (command.id === "tools") {
         setNotice(`可用工具：${toolNames}`);
+        return;
+      }
+
+      if (command.id === "skills") {
+        const skills = skillRegistry.list();
+        if (skills.length === 0) {
+          setNotice("没有已加载的 Skills。在 .blackpearl/skills/ 下创建 SKILL.md 文件。");
+        } else {
+          setNotice(`Skills：${skills.map((s) => s.name + " (" + s.description.slice(0, 40) + "...)").join("；")}`);
+        }
         return;
       }
 

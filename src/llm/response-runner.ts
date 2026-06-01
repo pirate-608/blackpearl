@@ -5,7 +5,7 @@ import type {
   ResponseInput,
 } from "openai/resources/responses/responses";
 import { SYSTEM_PROMPT } from "../agent/prompts.js";
-import { AgentError } from "../shared/errors.js";
+import { AgentAbortedError, AgentError } from "../shared/errors.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { AgentRunner, EmitEvent } from "./types.js";
 
@@ -41,6 +41,8 @@ export class ResponseRunner implements AgentRunner {
     let pendingInput: string | ResponseInput = userInput;
 
     for (let step = 0; step < maxSteps; step++) {
+      if (options?.signal?.aborted) throw new AgentAbortedError();
+
       const request: ResponseCreateParamsNonStreaming = {
         model: this.options.model,
         instructions,

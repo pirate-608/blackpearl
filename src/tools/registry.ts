@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { ToolExecutionError } from "../shared/errors.js";
-import type { AnyToolDefinition, ToolContext, ToolDefinition } from "./types.js";
+import type { AnyToolDefinition, McpToolDefinition, ToolContext, ToolDefinition } from "./types.js";
 import { toChatCompletionTools } from "../llm/chat-completions-runner.js";
 import { toClaudeTools } from "../llm/claude-runner.js";
 
 export class ToolRegistry {
-  private readonly tools = new Map<string, AnyToolDefinition>();
+  private readonly tools = new Map<string, AnyToolDefinition | McpToolDefinition>();
 
   constructor(private readonly context: ToolContext) {}
 
@@ -18,7 +18,18 @@ export class ToolRegistry {
     this.tools.set(tool.name, tool);
   }
 
-  list(): AnyToolDefinition[] {
+  /** Register an MCP-discovered tool (no Zod schema, uses raw JSON Schema) */
+  registerMcpTool(tool: McpToolDefinition): void {
+    // Allow overwriting MCP tools (server reconnection scenario)
+    this.tools.set(tool.name, tool);
+  }
+
+  /** Remove a tool by name (for MCP server disconnect) */
+  unregister(name: string): boolean {
+    return this.tools.delete(name);
+  }
+
+  list(): (AnyToolDefinition | McpToolDefinition)[] {
     return [...this.tools.values()];
   }
 
@@ -53,12 +64,18 @@ export class ToolRegistry {
       throw new ToolExecutionError(name, "Unknown tool");
     }
 
-    const parsed = tool.schema.safeParse(input);
-    if (!parsed.success) {
-      throw new ToolExecutionError(name, parsed.error.message);
-    }
-
     try {
+      // MCP tools: no Zod schema, pass raw input
+      if (!tool.schema) {
+        return await (tool as McpToolDefinition).execute(input, this.context);
+      }
+
+      // Regular tools: Zod parse first
+      const parsed = tool.schema.safeParse(input);
+      if (!parsed.success) {
+        throw new ToolExecutionError(name, parsed.error.message);
+      }
+
       return await tool.execute(parsed.data, this.context);
     } catch (error) {
       if (error instanceof ToolExecutionError) {

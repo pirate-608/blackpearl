@@ -1,13 +1,15 @@
+import { AgentAbortedError } from "../shared/errors.js";
 import { EXECUTOR_PROMPT, PLANNER_PROMPT } from "./prompts.js";
 import type { EventBus } from "./events.js";
 import type { AgentSession } from "./session.js";
 import type { AgentRuntime } from "./runtime.js";
-import type { AgentRunner } from "../llm/types.js";
+import type { AgentRunner, RunOptions } from "../llm/types.js";
 import {
   createMemoryContextPrompt,
   getShortTermMemory,
   type MemoryStore,
 } from "../memory/memory-store.js";
+import type { SkillRegistry } from "../skills/skill-registry.js";
 import type { TranscriptStore } from "../storage/transcript-store.js";
 
 export type MultiAgentOrchestratorOptions = {
@@ -17,10 +19,20 @@ export type MultiAgentOrchestratorOptions = {
   eventBus: EventBus;
   transcriptStore?: TranscriptStore;
   memoryStore?: MemoryStore;
+  skillRegistry?: SkillRegistry;
 };
 
 export class MultiAgentOrchestrator {
+  private abortController: AbortController | null = null;
+
   constructor(private readonly options: MultiAgentOrchestratorOptions) {}
+
+  abort(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+  }
 
   async handleUserInput(input: string): Promise<void> {
     const trimmed = input.trim();
@@ -46,6 +58,13 @@ export class MultiAgentOrchestrator {
     const subagentRunner =
       this.options.createSubagentRunner?.() ?? this.options.runtime.getRunner();
 
+    // Check for skill match
+    const skill = this.options.skillRegistry?.match(trimmed);
+
+    // Set up abort controller
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
+
     try {
       // Phase 1: Create plan
       const planInput = memoryPrompt
@@ -55,7 +74,7 @@ export class MultiAgentOrchestrator {
       const planText = await subagentRunner.run(planInput, (event) => {
         this.options.session.applyEvent(event);
         this.options.eventBus.emit(event);
-      }, { instructions: PLANNER_PROMPT, tools: [], maxSteps: 1 });
+      }, { instructions: PLANNER_PROMPT, tools: [], maxSteps: 1, signal });
 
       const steps = parsePlan(planText);
 
@@ -81,10 +100,15 @@ export class MultiAgentOrchestrator {
         const context = buildStepContext(steps, stepResults, i);
         const stepInput = `Execute this step${context}:\n${step}`;
 
+        const execOptions: RunOptions = {
+          instructions: skill ? `${skill.instructions}\n\n---\n${EXECUTOR_PROMPT}` : EXECUTOR_PROMPT,
+          signal,
+        };
+
         const result = await subagentRunner.run(stepInput, (event) => {
           this.options.session.applyEvent(event);
           this.options.eventBus.emit(event);
-        }, { instructions: EXECUTOR_PROMPT });
+        }, execOptions);
 
         stepResults.push(result);
 
@@ -102,7 +126,7 @@ export class MultiAgentOrchestrator {
       const finalText = await subagentRunner.run(summaryInput, (event) => {
         this.options.session.applyEvent(event);
         this.options.eventBus.emit(event);
-      }, { tools: [], maxSteps: 1 });
+      }, { tools: [], maxSteps: 1, signal });
 
       this.options.eventBus.emit({ type: "assistant_message", content: finalText });
 
@@ -115,16 +139,22 @@ export class MultiAgentOrchestrator {
       });
       await this.options.memoryStore?.rememberConversation(trimmed, finalText);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const event = { type: "error" as const, message };
-      this.options.session.addActivity("error", message);
-      this.options.eventBus.emit(event);
-      await this.options.transcriptStore?.append({
-        kind: "event",
-        sessionId: this.options.session.id,
-        createdAt: new Date().toISOString(),
-        event,
-      });
+      if (error instanceof AgentAbortedError) {
+        this.options.session.addActivity("aborted", "User interrupted execution");
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        const event = { type: "error" as const, message };
+        this.options.session.addActivity("error", message);
+        this.options.eventBus.emit(event);
+        await this.options.transcriptStore?.append({
+          kind: "event",
+          sessionId: this.options.session.id,
+          createdAt: new Date().toISOString(),
+          event,
+        });
+      }
+    } finally {
+      this.abortController = null;
     }
   }
 }
