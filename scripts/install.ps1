@@ -10,14 +10,14 @@
     extracts blackpearl.exe into ~/.local/bin, and adds it to PATH.
 
 .EXAMPLE
-    irm https://raw.githubusercontent.com/pirate-608/ai-group-work/main/scripts/install.ps1 | iex
+    irm https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Stop"
 
 $Repo = $env:BLACKPEARL_REPO
 if (-not $Repo) {
-    $Repo = "pirate-608/ai-group-work"
+    $Repo = "pirate-608/blackpearl"
 }
 
 $Platform = "windows-x64"

@@ -4,12 +4,12 @@ set -euo pipefail
 # Install blackpearl to ~/.local/bin
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/pirate-608/ai-group-work/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.sh | bash
 #
 # Or with a specific release:
 #   BLACKPEARL_VERSION=v0.2.0 bash install.sh
 
-REPO="${BLACKPEARL_REPO:-pirate-608/ai-group-work}"
+REPO="${BLACKPEARL_REPO:-pirate-608/blackpearl}"
 INSTALL_DIR="${BLACKPEARL_INSTALL_DIR:-$HOME/.local/bin}"
 
 # ---------- helpers ----------
