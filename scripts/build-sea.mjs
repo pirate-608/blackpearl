@@ -43,6 +43,9 @@ async function buildBundle() {
     target: "node26",
     logLevel: "info",
     sourcemap: false,
+    banner: {
+      js: "import{createRequire}from\"node:module\";var require=createRequire(import.meta.url);",
+    },
     plugins: [optionalReactDevtoolsStub()],
   });
 
