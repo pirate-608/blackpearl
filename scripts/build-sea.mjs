@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { access, chmod, mkdir, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -43,11 +43,14 @@ async function buildBundle() {
     target: "node26",
     logLevel: "info",
     sourcemap: false,
-    banner: {
-      js: "import{createRequire}from\"node:module\";var require=createRequire(import.meta.url);",
-    },
     plugins: [optionalReactDevtoolsStub()],
   });
+
+  // Inject require polyfill via top-level await import to avoid naming
+  // conflicts with any static import of createRequire in the bundle.
+  let bundle = await readFile(BUNDLE_PATH, "utf8");
+  bundle = `var require=(await import("node:module")).createRequire(import.meta.url);\n${bundle}`;
+  await writeFile(BUNDLE_PATH, bundle, "utf8");
 
   console.log(`Created ESM bundle: ${relative(BUNDLE_PATH)}`);
 }
