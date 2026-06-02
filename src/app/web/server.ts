@@ -2,16 +2,11 @@ import { exec } from "node:child_process";
 import fs from "node:fs/promises";
 import http, { type ServerResponse } from "node:http";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
 import mammoth from "mammoth";
+import { PDFParse } from "pdf-parse";
 import type { AgentEvent } from "../../agent/events.js";
-
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse") as (
-  buffer: Buffer,
-) => Promise<{ text: string }>;
 import { createAgentAppContext } from "../../bootstrap.js";
 import { TranscriptStore } from "../../storage/transcript-store.js";
 import {
@@ -213,7 +208,8 @@ async function handleParseFile(
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
     } else if (ext === "pdf") {
-      const data = await pdfParse(buffer);
+      const parser = new PDFParse({ data: buffer });
+      const data = await parser.getText();
       text = data.text;
     } else {
       // Plain text fallback
