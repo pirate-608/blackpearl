@@ -164,6 +164,55 @@ pnpm package:sea
 pnpm package:smoke
 ```
 
+## 自动发布（GitHub Releases）
+
+推送以 `v` 开头的 tag 时，GitHub Actions 会在三平台构建完成后自动创建 Release：
+
+```powershell
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+构建过程中会将各平台二进制文件统一重命名为 `blackpearl`（Windows 为 `blackpearl.exe`）并打包为压缩文件：
+
+| 平台 | Release Asset | 包内文件名 |
+| --- | --- | --- |
+| Windows x64 | `blackpearl-windows-x64.zip` | `blackpearl.exe` |
+| Linux x64 | `blackpearl-linux-x64.tar.gz` | `blackpearl` |
+| macOS arm64 | `blackpearl-macos-arm64.tar.gz` | `blackpearl` |
+
+Release 页面会自动生成 release notes，用户可直接下载压缩包解压使用，无需安装 Node.js。
+
+### 一键安装脚本
+
+项目提供了跨平台的一键安装脚本，自动下载最新 Release、解压并将 `blackpearl` 安装到 `~/.local/bin`。
+
+**Windows（PowerShell）：**
+
+```powershell
+irm https://raw.githubusercontent.com/pirate-608/ai-group-work/main/scripts/install.ps1 | iex
+```
+
+**Linux / macOS（Bash）：**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirate-608/ai-group-work/main/scripts/install.sh | bash
+```
+
+安装脚本支持通过环境变量自定义：
+
+| 环境变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `BLACKPEARL_REPO` | GitHub 仓库地址（`OWNER/REPO` 格式） | `pirate-608/ai-group-work` |
+| `BLACKPEARL_INSTALL_DIR` | 安装目录（仅 sh 脚本） | `~/.local/bin` |
+| `BLACKPEARL_VERSION` | 指定版本号（如 `v0.2.0`），不设置则使用 latest | `latest` |
+
+示例：安装指定版本到自定义目录
+
+```bash
+BLACKPEARL_VERSION=v0.2.0 BLACKPEARL_INSTALL_DIR=/usr/local/bin bash install.sh
+```
+
 ## 保留 fallback
 
 保留当前脚本：

@@ -28,15 +28,15 @@ jobs:
           - name: windows-x64
             os: windows-latest
             artifact: blackpearl-windows-x64
-            binary: dist-sea/blackpearl-win32-*.exe
+            binary: dist-sea/blackpearl-win32-x64.exe
           - name: linux-x64
             os: ubuntu-latest
             artifact: blackpearl-linux-x64
-            binary: dist-sea/blackpearl-linux-*
+            binary: dist-sea/blackpearl-linux-x64
           - name: macos-arm64
             os: macos-latest
             artifact: blackpearl-macos-arm64
-            binary: dist-sea/blackpearl-darwin-*
+            binary: dist-sea/blackpearl-darwin-arm64
 
     steps:
       - name: Checkout repository
@@ -68,12 +68,47 @@ jobs:
       - name: Smoke test executable
         run: pnpm package:smoke
 
-      - name: Upload executable
+      - name: Package archive
+        shell: bash
+        run: |
+          mkdir -p release
+          if [ "${{ matrix.name }}" = "windows-x64" ]; then
+            cp "${{ matrix.binary }}" release/blackpearl.exe
+            cd release && zip ../${{ matrix.artifact }}.zip blackpearl.exe
+          else
+            cp "${{ matrix.binary }}" release/blackpearl
+            chmod +x release/blackpearl
+            tar czf ${{ matrix.artifact }}.tar.gz -C release blackpearl
+          fi
+
+      - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: |
-            ${{ matrix.binary }}
-            dist-sea/blackpearl.bundle.mjs
-            dist-sea/sea-config.json
+            ${{ matrix.artifact }}.*
           if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/blackpearl-windows-x64/blackpearl-windows-x64.zip
+            artifacts/blackpearl-linux-x64/blackpearl-linux-x64.tar.gz
+            artifacts/blackpearl-macos-arm64/blackpearl-macos-arm64.tar.gz
+          generate_release_notes: true
+          fail_on_unmatched_files: true
