@@ -48,8 +48,15 @@ async function buildBundle() {
 
   // Inject require polyfill via top-level await import to avoid naming
   // conflicts with any static import of createRequire in the bundle.
+  // Must be placed after the shebang line (if present) so the shebang stays first.
   let bundle = await readFile(BUNDLE_PATH, "utf8");
-  bundle = `var require=(await import("node:module")).createRequire(import.meta.url);\n${bundle}`;
+  const polyfill = "var require=(await import(\"node:module\")).createRequire(import.meta.url);";
+  if (bundle.startsWith("#!/")) {
+    const nl = bundle.indexOf("\n");
+    bundle = bundle.slice(0, nl + 1) + polyfill + "\n" + bundle.slice(nl + 1);
+  } else {
+    bundle = polyfill + "\n" + bundle;
+  }
   await writeFile(BUNDLE_PATH, bundle, "utf8");
 
   console.log(`Created ESM bundle: ${relative(BUNDLE_PATH)}`);
