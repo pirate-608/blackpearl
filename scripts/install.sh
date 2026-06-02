@@ -12,6 +12,67 @@ set -euo pipefail
 REPO="${BLACKPEARL_REPO:-pirate-608/ai-group-work}"
 INSTALL_DIR="${BLACKPEARL_INSTALL_DIR:-$HOME/.local/bin}"
 
+# ---------- helpers ----------
+
+ensure_install_dir() {
+    if [ ! -d "$INSTALL_DIR" ]; then
+        mkdir -p "$INSTALL_DIR"
+        echo "Created directory: $INSTALL_DIR"
+    fi
+}
+
+detect_shell_profile() {
+    local shell_name
+    shell_name=$(basename "${SHELL:-bash}")
+
+    case "$shell_name" in
+        zsh)
+            if [ -f "$HOME/.zshrc" ]; then
+                echo "$HOME/.zshrc"
+            else
+                echo "$HOME/.profile"
+            fi
+            ;;
+        bash)
+            if [ -f "$HOME/.bashrc" ]; then
+                echo "$HOME/.bashrc"
+            elif [ -f "$HOME/.bash_profile" ]; then
+                echo "$HOME/.bash_profile"
+            else
+                echo "$HOME/.profile"
+            fi
+            ;;
+        *)
+            echo "$HOME/.profile"
+            ;;
+    esac
+}
+
+ensure_path() {
+    local profile
+    profile=$(detect_shell_profile)
+    local path_line='export PATH="$HOME/.local/bin:$PATH"'
+
+    if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+        return 0
+    fi
+
+    # Write to shell profile if not already there
+    if [ -f "$profile" ] && grep -qF "$path_line" "$profile" 2>/dev/null; then
+        :
+    else
+        {
+            echo ""
+            echo "# Added by blackpearl installer"
+            echo "$path_line"
+        } >> "$profile"
+        echo "Added PATH entry to $profile"
+    fi
+
+    # Make it available in the current shell session too
+    export PATH="$HOME/.local/bin:$PATH"
+}
+
 get_platform() {
     local os arch
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -57,8 +118,12 @@ get_download_url() {
     fi
 }
 
+# ---------- main ----------
+
 main() {
     echo "Installing blackpearl ..."
+
+    ensure_install_dir
 
     local platform
     platform=$(get_platform)
@@ -70,8 +135,6 @@ main() {
         echo "Could not find release asset for platform: $platform" >&2
         exit 1
     fi
-
-    mkdir -p "$INSTALL_DIR"
 
     local tmp_dir
     tmp_dir=$(mktemp -d)
@@ -92,12 +155,7 @@ main() {
 
     echo "blackpearl installed to $INSTALL_DIR/blackpearl"
 
-    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        echo ""
-        echo "Warning: $INSTALL_DIR is not in your PATH."
-        echo "Add the following line to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
-        echo '  export PATH="$HOME/.local/bin:$PATH"'
-    fi
+    ensure_path
 
     echo ""
     echo "Run 'blackpearl --help' to get started."
