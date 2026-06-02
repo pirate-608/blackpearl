@@ -43,6 +43,7 @@ async function buildBundle() {
     target: "node26",
     logLevel: "info",
     sourcemap: false,
+    external: ["pdf-parse"],
     plugins: [optionalReactDevtoolsStub()],
   });
 

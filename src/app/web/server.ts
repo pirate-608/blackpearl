@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import type { AgentEvent } from "../../agent/events.js";
 import { createAgentAppContext } from "../../bootstrap.js";
 import { TranscriptStore } from "../../storage/transcript-store.js";
@@ -208,9 +207,19 @@ async function handleParseFile(
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
     } else if (ext === "pdf") {
-      const parser = new PDFParse({ data: buffer });
-      const data = await parser.getText();
-      text = data.text;
+      try {
+        const { PDFParse } = await import("pdf-parse");
+        const parser = new PDFParse({ data: buffer });
+        const data = await parser.getText();
+        text = data.text;
+      } catch {
+        sendJson(response, {
+          error:
+            "PDF parsing is not available in the standalone executable. " +
+            "Run from source (`corepack pnpm web`) for PDF support.",
+        }, 501);
+        return;
+      }
     } else {
       // Plain text fallback
       text = buffer.toString("utf8");
