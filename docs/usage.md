@@ -58,7 +58,7 @@ blackpearl --help           # 查看用法
 blackpearl --resume <id>    # 恢复会话
 ```
 
-独立可执行文件基于 Node.js 26 SEA（Single Executable Application），将 TypeScript 源码、运行时和所有纯 JavaScript 依赖打包为单个二进制文件。详情见 [PACKAGING.md](../PACKAGING.md)。
+独立可执行文件基于 Node.js 26 SEA（Single Executable Application），将 TypeScript 源码、运行时和所有纯 JavaScript 依赖打包为单个二进制文件。详情见 [打包说明](./PACKAGING.md)。
 
 ### 从源码运行
 
@@ -87,7 +87,7 @@ tsx src/cli.ts --resume <id>  # 恢复会话
 | 独立可执行文件 | 最终用户，无需 Node.js | `blackpearl` / `blackpearl web` |
 | 源码运行（tsx） | 开发调试，需要 Node.js | `corepack pnpm dev` / `corepack pnpm web` |
 
-独立可执行文件基于 Node.js 26 SEA + `mainFormat: “module”` 打包，通过 GitHub Actions 在 Windows/Linux/macOS 三平台构建并发布到 Release。详见 [PACKAGING.md](../PACKAGING.md)。
+独立可执行文件基于 Node.js 26 SEA + `mainFormat: “module”` 打包，通过 GitHub Actions 在 Windows/Linux/macOS 三平台构建并发布到 Release。详见 [打包说明](./PACKAGING.md)。
 
 源码运行仍保留 `blackpearl.cmd` / `blackpearl` fallback 脚本，适合开发环境和非单文件分发场景。
 

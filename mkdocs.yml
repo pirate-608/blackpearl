@@ -47,6 +47,7 @@ nav:
   - 架构设计: architecture.md
   - 技术接口: interfaces.md
   - 开发与测试: development.md
+  - 打包说明: PACKAGING.md
   - 课程方案: recommended-solution.md
   - 基础构建说明: implementation-notes.md
   - 作业原始要求: raw-instruction.md
