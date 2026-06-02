@@ -1,0 +1,79 @@
+name: Package SEA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - 'src/**'
+      - 'scripts/build-sea.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/package-sea.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-latest
+            artifact: blackpearl-windows-x64
+            binary: dist-sea/blackpearl-win32-*.exe
+          - name: linux-x64
+            os: ubuntu-latest
+            artifact: blackpearl-linux-x64
+            binary: dist-sea/blackpearl-linux-*
+          - name: macos-arm64
+            os: macos-latest
+            artifact: blackpearl-macos-arm64
+            binary: dist-sea/blackpearl-darwin-*
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+
+      - name: Set up Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm lint
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build SEA executable
+        run: pnpm package:sea
+
+      - name: Smoke test executable
+        run: pnpm package:smoke
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.binary }}
+            dist-sea/blackpearl.bundle.mjs
+            dist-sea/sea-config.json
+          if-no-files-found: error

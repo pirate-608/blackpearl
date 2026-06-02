@@ -137,8 +137,9 @@ http://127.0.0.1:8000
 ## 已知后续任务
 
 1. 给 Chat Completions runner 和 Responses runner 补 mock 集成测试。
-2. 给 `MultiAgentOrchestrator` 补单元测试。
-3. 增加 `/history` 命令读取 transcript。
-4. 增加写文件前确认机制。
-5. 给长期记忆增加删除、编辑和导出能力。
-6. 扩展工具测试和真实 provider 兼容性记录。
+2. 给 `MultiAgentOrchestrator` 和 `McpClientManager` 补单元测试。
+3. 给 Skill 匹配和 MCP 工具发现补集成测试。
+4. 增加 `/history` 命令读取 transcript。
+5. 增加写文件前确认机制。
+6. 给长期记忆增加删除、编辑和导出能力。
+7. 扩展真实 provider 兼容性记录。

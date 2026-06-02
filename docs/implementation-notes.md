@@ -35,16 +35,21 @@ AGENT_MAX_STEPS=6
 - `src/agent/`: 会话、事件、单 Agent 编排器、多 Agent 编排器和系统提示词。
 - `src/llm/`: provider profiles、连接存储、runner factory、Responses runner、Chat Completions runner 与 Claude/DeepSeek Anthropic-compatible runner。
 - `src/memory/`: 短期记忆上下文和长期记忆 JSONL 存储。
-- `src/tools/`: 工具注册表与默认工具。
+- `src/mcp/`: MCP 客户端管理器，连接外部工具服务器并注册工具。
+- `src/skills/`: Skill 注册表，加载 SKILL.md 并按关键词匹配。
+- `src/tools/`: 工具注册表与默认工具（含 MCP 工具和 Skill 工具支持）。
 - `src/storage/`: JSONL 会话记录。
 
 ## 已实现加分功能
 
 - 流式输出：runner 发出 `assistant_delta`，TUI 和 Web 统一消费。
-- 短期记忆：当前 session 最近消息会注入下一次请求。
-- 长期记忆：一轮问答摘要写入 `.blackpearl/memory.jsonl`，后续按关键词召回。
-- Web 界面：`corepack pnpm web` 启动，默认访问 `http://localhost:4173`，支持完整 `/` 命令和 connect 模态框。
-- 多 Agent 协作：`/plan` 命令触发规划 + 执行 + 汇总三阶段流程，可通过 `BLACKPEARL_SUBAGENT_MODEL` 指定同厂商子智能体模型。
+- 短期/长期记忆：当前 session 消息注入 + JSONL 关键词检索长期记忆。
+- Web 界面：完整 `/` 命令系统、暗色模式、文件上传、Markdown 渲染、会话侧边栏。
+- 多 Agent 协作：`/plan` 命令触发规划 + 执行 + 汇总三阶段流程。
+- MCP 协议：连接外部工具服务器，动态扩展 Agent 工具集。
+- Skills 系统：SKILL.md 自定义提示词 + 工具白名单，关键词自动匹配。
+- 中断机制：TUI 按 Esc、Web 点停止按钮随时中断执行。
+- CLI 命令行：`blackpearl` / `blackpearl web` 全局命令。
 - 优雅退出：Web 服务器支持 `/exit` 命令和 SIGINT 关闭，端口冲突时给出清晰提示。
 
 ## 已实现工具
