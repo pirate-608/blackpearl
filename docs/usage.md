@@ -15,8 +15,8 @@
 ## 获取源码
 
 ```powershell
-git clone https://github.com/pirate-608/ai-group-work.git
-cd ai-group-work
+git clone https://github.com/pirate-608/blackpearl.git
+cd blackpearl
 ```
 
 ## 安装 Node 依赖
@@ -32,6 +32,35 @@ corepack pnpm install
 > 首次使用 Corepack 可能需要允许它在用户目录创建缓存并下载 pnpm。
 
 ## 运行方式
+
+### 独立可执行文件（推荐，无需 Node.js）
+
+从 [GitHub Releases](https://github.com/pirate-608/blackpearl/releases) 下载对应平台的压缩包，解压即可使用。或使用一键安装脚本：
+
+**Windows（PowerShell）：**
+
+```powershell
+irm https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.ps1 | iex
+```
+
+**Linux / macOS（Bash）：**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.sh | bash
+```
+
+安装后：
+
+```bash
+blackpearl                  # 启动 TUI
+blackpearl web              # 启动 Web UI
+blackpearl --help           # 查看用法
+blackpearl --resume <id>    # 恢复会话
+```
+
+独立可执行文件基于 Node.js 26 SEA（Single Executable Application），将 TypeScript 源码、运行时和所有纯 JavaScript 依赖打包为单个二进制文件。详情见 [PACKAGING.md](../PACKAGING.md)。
+
+### 从源码运行
 
 项目使用 `tsx` 直接执行 TypeScript 源码，无需编译。
 
@@ -49,16 +78,18 @@ tsx src/cli.ts --help         # 查看用法
 tsx src/cli.ts --resume <id>  # 恢复会话
 ```
 
-## 命令行工具打包状态
+## 命令行工具打包
 
-当前项目保持源码运行方式，推荐入口是：
+项目支持两种运行方式：
 
-```powershell
-corepack pnpm dev
-corepack pnpm web
-```
+| 方式 | 适用场景 | 启动命令 |
+| --- | --- | --- |
+| 独立可执行文件 | 最终用户，无需 Node.js | `blackpearl` / `blackpearl web` |
+| 源码运行（tsx） | 开发调试，需要 Node.js | `corepack pnpm dev` / `corepack pnpm web` |
 
-此前尝试过将 Node.js 项目打包为全局可执行命令行工具，但入口模块、Web 服务和 TUI 动态加载都依赖顶层 `await`，在若干打包方案中存在兼容性问题。现阶段不把“独立二进制/全局命令”作为稳定能力，`corepack pnpm build` 主要用于 TypeScript 编译验证。
+独立可执行文件基于 Node.js 26 SEA + `mainFormat: “module”` 打包，通过 GitHub Actions 在 Windows/Linux/macOS 三平台构建并发布到 Release。详见 [PACKAGING.md](../PACKAGING.md)。
+
+源码运行仍保留 `blackpearl.cmd` / `blackpearl` fallback 脚本，适合开发环境和非单文件分发场景。
 
 ## 配置环境变量
 

@@ -10,22 +10,42 @@
 
 ## 快速开始
 
-### 环境要求
+### 一键安装（推荐）
 
-| 依赖 | 版本 | 说明 |
-| --- | --- | --- |
-| Node.js | ≥ 20 | 运行时 |
-| pnpm | 10.12.1 | 由 Corepack 自动管理 |
-| Git | 任意 | 克隆仓库 |
+无需安装 Node.js，下载独立可执行文件即可使用：
 
-*若环境不满足，请访问[Node.js官网](https://nodejs.org/zh-cn)了解更多。若已有Node.js环境，可用 `npm install -g corepack`安装 `corepack` 并激活。*
+**Windows（PowerShell）：**
+
+```powershell
+irm https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.ps1 | iex
+```
+
+**Linux / macOS（Bash）：**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.sh | bash
+```
+
+安装后重启终端即可使用：
+
+```bash
+blackpearl                  # 启动 TUI
+blackpearl web              # 启动 Web UI
+blackpearl --resume <id>    # 恢复会话
+```
+
+也可以从 [GitHub Releases](https://github.com/pirate-608/blackpearl/releases) 手动下载压缩包解压使用。
+
+### 从源码运行
+
+环境要求：Node.js ≥ 20，pnpm 由 Corepack 自动管理。
 
 ### Windows
 
 ```powershell
 # 克隆仓库
-git clone https://github.com/pirate-608/ai-group-work.git
-cd ai-group-work
+git clone https://github.com/pirate-608/blackpearl.git
+cd blackpearl
 
 # 安装依赖并启动
 corepack enable          # 首次需要管理员权限
@@ -38,8 +58,8 @@ corepack pnpm dev        # 启动 TUI
 
 ```bash
 # 克隆仓库
-git clone https://github.com/pirate-608/ai-group-work.git
-cd ai-group-work
+git clone https://github.com/pirate-608/blackpearl.git
+cd blackpearl
 
 # 安装依赖并启动
 corepack enable          # 首次需要 sudo
@@ -136,45 +156,22 @@ TUI 中输入 `/skills` 查看已加载的技能列表。
 ## 常用命令
 
 ```bash
-corepack pnpm dev       # 启动 TUI
-corepack pnpm web       # 启动 Web 界面
+corepack pnpm dev       # 启动 TUI（源码）
+corepack pnpm web       # 启动 Web 界面（源码）
 corepack pnpm build     # TypeScript 编译
 corepack pnpm test      # 运行 Vitest 测试
 corepack pnpm lint      # TypeScript 类型检查
 ```
 
-## 全局命令
+编译后也可通过项目自带的 fallback 脚本启动：
 
-编译后将项目目录加入 PATH，即可在**任意目录**使用 `blackpearl` 命令：
-
-```powershell
-corepack pnpm build
-```
-
-**Windows** — 管理员 PowerShell：
-```powershell
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";D:\projects\agent-project", "User")
-```
-
-**macOS / Linux** — 添加到 `~/.bashrc`：
 ```bash
-echo 'export PATH="$PATH:/path/to/ai-group-work"' >> ~/.bashrc
-source ~/.bashrc
+# Windows（任意目录，需将项目目录加入 PATH）
+blackpearl.cmd
+
+# macOS / Linux
+./blackpearl
 ```
-
-重启终端后：
-```bash
-blackpearl                  # 当前目录启动 TUI
-blackpearl web              # 当前目录启动 Web UI
-blackpearl --resume <id>    # 恢复会话
-blackpearl --help           # 查看帮助
-```
-
-> 原理：项目根目录的 `blackpearl.cmd`（Windows）和 `blackpearl`（macOS/Linux）脚本会自动调用编译后的 JS 或通过 `tsx` 运行源码。
-
-## 运行策略说明
-
-当前项目保持源码运行方式，使用 `tsx` 直接执行 TypeScript。曾尝试打包为独立 .exe，但 Node.js SEA 等工具不支持含顶层 `await` 的 ESM 项目。`blackpearl.cmd` / `blackpearl` 脚本 + PATH 是轻量替代方案。
 
 ## 当前能力
 
@@ -192,4 +189,5 @@ blackpearl --help           # 查看帮助
 - MCP 协议支持：连接外部工具服务器，动态扩展 Agent 工具集
 - Web 界面支持 `/` 命令提示、model 切换、connect 配置和 Stop 中断
 - `Esc` 中断机制：TUI 按 Esc、Web 点 Stop 按钮，随时终止 Agent 执行
-- 全局命令：`blackpearl` / `blackpearl web` / `--resume`，支持 PATH 安装
+- 全局命令：`blackpearl` / `blackpearl web` / `--resume`，一键安装或从 PATH 启动
+- Node.js SEA 独立可执行文件打包（基于 Node 26 `mainFormat: "module"`），Windows/Linux/macOS 三平台 Release 发布

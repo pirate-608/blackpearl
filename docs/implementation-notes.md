@@ -50,6 +50,8 @@ AGENT_MAX_STEPS=6
 - Skills 系统：SKILL.md 自定义提示词 + 工具白名单，关键词自动匹配。
 - 中断机制：TUI 按 Esc、Web 点停止按钮随时中断执行。
 - CLI 命令行：`blackpearl` / `blackpearl web` 全局命令。
+- 独立可执行文件打包：基于 Node.js 26 SEA `mainFormat: "module"`，esbuild 打包 ESM bundle，GitHub Actions 三平台构建并发布 Release。
+- 一键安装脚本：`irm | iex`（Windows）/ `curl | bash`（Linux/macOS）自动下载安装到 `~/.local/bin`。
 - 优雅退出：Web 服务器支持 `/exit` 命令和 SIGINT 关闭，端口冲突时给出清晰提示。
 
 ## 已实现工具
