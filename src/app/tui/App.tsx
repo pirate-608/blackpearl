@@ -141,9 +141,9 @@ export function App({
       if (command.id === "skills") {
         const skills = skillRegistry.list();
         if (skills.length === 0) {
-          setNotice("没有已加载的 Skills。在 .blackpearl/skills/ 下创建 SKILL.md 文件。");
+          setNotice("没有已加载的 Skills。在 .agents/<skill-name>/SKILL.md 或 ~/.agents/<skill-name>/SKILL.md 下创建。");
         } else {
-          setNotice(`Skills：${skills.map((s) => s.name + " (" + s.description.slice(0, 40) + "...)").join("；")}`);
+          setNotice(`Skills：${skills.map(formatSkillNotice).join("；")}`);
         }
         return;
       }
@@ -364,4 +364,12 @@ function formatProviderPrompt(): string {
   return `选择后端：${providerProfiles
     .map((profile) => `${profile.id}(${profile.label})`)
     .join("，")}`;
+}
+
+function formatSkillNotice(skill: ReturnType<SkillRegistry["list"]>[number]): string {
+  const source =
+    skill.source
+      ? `${skill.source.scope}/${skill.source.format === "agents" ? ".agents" : ".blackpearl"}`
+      : "unknown";
+  return `${skill.name} [${source}] (${skill.description.slice(0, 40)}...)`;
 }

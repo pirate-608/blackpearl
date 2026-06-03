@@ -5,4 +5,17 @@ export type Skill = {
   instructions: string;
   allowedTools?: string[];
   userInvocable: boolean;
+  source?: SkillSource;
+};
+
+export type SkillSourceScope = "user" | "project";
+
+export type SkillSourceFormat = "agents" | "blackpearl-legacy";
+
+export type SkillSource = {
+  scope: SkillSourceScope;
+  format: SkillSourceFormat;
+  rootDir: string;
+  skillDir: string;
+  filePath: string;
 };

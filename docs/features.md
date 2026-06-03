@@ -91,6 +91,7 @@ Agent 在每次处理用户输入前会构建记忆上下文：
 
 - `.git/`
 - `.blackpearl/`
+- `.agents/`
 - `node_modules/`
 - `dist/`
 - `site/`
@@ -131,7 +132,11 @@ Agent 在每次处理用户输入前会构建记忆上下文：
 
 ### Skills 技能系统
 
-在 `.blackpearl/skills/<名称>/SKILL.md` 下创建技能文件。Agent 根据用户输入中的关键词自动匹配并激活技能，注入自定义系统提示词，并可限制可用工具白名单。
+Skills 使用 `skill-name/SKILL.md` 结构和 YAML frontmatter。推荐在项目级 `.agents/<skill-name>/SKILL.md` 下创建技能；用户级技能可放在 `~/.agents/<skill-name>/SKILL.md` 供多个项目复用。
+
+加载优先级为：用户级旧目录 `~/.blackpearl/skills`、用户级新目录 `~/.agents`、项目级旧目录 `.blackpearl/skills`、项目级新目录 `.agents`。同名技能后加载者覆盖先加载者，因此项目级优先于用户级，项目 `.agents` 优先于旧 `.blackpearl/skills`。
+
+Agent 根据用户输入中的关键词自动匹配并激活技能，注入自定义系统提示词，并可限制可用工具白名单。
 
 ### MCP 协议扩展
 

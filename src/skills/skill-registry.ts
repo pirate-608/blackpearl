@@ -1,35 +1,44 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import type { Skill } from "./types.js";
+import type {
+  Skill,
+  SkillSource,
+  SkillSourceFormat,
+  SkillSourceScope,
+} from "./types.js";
 
-const SKILLS_DIR = ".blackpearl/skills";
+const LEGACY_SKILLS_DIR = path.join(".blackpearl", "skills");
+const SKILL_FILE = "SKILL.md";
+
+type SkillSearchRoot = {
+  scope: SkillSourceScope;
+  format: SkillSourceFormat;
+  rootDir: string;
+  skillsDir: string;
+};
 
 export class SkillRegistry {
   private skills: Skill[] = [];
 
-  /** Load all SKILL.md files from the skills directory */
+  /**
+   * Load all SKILL.md files from user and project skill directories.
+   *
+   * Project skills override user skills with the same name. New skills should
+   * use `.agents/<skill-name>/SKILL.md`; `.blackpearl/skills` remains as a
+   * legacy compatibility path.
+   */
   async loadAll(workspaceRoot: string): Promise<void> {
-    const skillsDir = path.join(workspaceRoot, SKILLS_DIR);
-    let entries: { name: string; isDirectory: () => boolean }[];
+    const loaded = new Map<string, Skill>();
 
-    try {
-      entries = await fs.readdir(skillsDir, { withFileTypes: true }) as unknown as typeof entries;
-    } catch {
-      return; // No skills directory
-    }
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const skillPath = path.join(skillsDir, entry.name, "SKILL.md");
-      try {
-        const raw = await fs.readFile(skillPath, "utf8");
-        const skill = this.parseSkill(entry.name, raw);
-        if (skill) this.skills.push(skill);
-      } catch {
-        // Skip unreadable skills
+    for (const root of getSkillSearchRoots(workspaceRoot)) {
+      const skills = await this.loadFromRoot(root);
+      for (const skill of skills) {
+        loaded.set(skill.name.toLowerCase(), skill);
       }
     }
+
+    this.skills = [...loaded.values()];
   }
 
   /** Find a skill that matches the user input. Returns undefined if no match. */
@@ -64,7 +73,46 @@ export class SkillRegistry {
 
   // ── Private ────────────────────────────────────────
 
-  private parseSkill(dirName: string, content: string): Skill | undefined {
+  private async loadFromRoot(root: SkillSearchRoot): Promise<Skill[]> {
+    let entries: { name: string; isDirectory: () => boolean }[];
+
+    try {
+      entries = await fs.readdir(root.skillsDir, { withFileTypes: true }) as unknown as typeof entries;
+    } catch {
+      return [];
+    }
+
+    const skills: Skill[] = [];
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const skillDir = path.join(root.skillsDir, entry.name);
+      const skillPath = path.join(skillDir, SKILL_FILE);
+      try {
+        const raw = await fs.readFile(skillPath, "utf8");
+        const source: SkillSource = {
+          scope: root.scope,
+          format: root.format,
+          rootDir: root.rootDir,
+          skillDir,
+          filePath: skillPath,
+        };
+        const skill = this.parseSkill(entry.name, raw, source);
+        if (skill) skills.push(skill);
+      } catch {
+        // Skip unreadable skills
+      }
+    }
+
+    return skills;
+  }
+
+  private parseSkill(
+    dirName: string,
+    content: string,
+    source?: SkillSource,
+  ): Skill | undefined {
     const fm = extractFrontmatter(content);
     if (!fm) return undefined;
 
@@ -79,11 +127,8 @@ export class SkillRegistry {
         ? content.slice(bodyStart + 3).trim()
         : content.trim();
 
-    const allowedTools: string[] | undefined = Array.isArray(fm["allowed-tools"])
-      ? (fm["allowed-tools"] as string[])
-      : Array.isArray(fm.allowedTools)
-        ? (fm.allowedTools as string[])
-        : undefined;
+    const allowedTools =
+      parseStringList(fm["allowed-tools"]) ?? parseStringList(fm.allowedTools);
 
     const skill: Skill = {
       name,
@@ -92,8 +137,116 @@ export class SkillRegistry {
       userInvocable,
     };
     if (allowedTools) skill.allowedTools = allowedTools;
+    if (source) skill.source = source;
     return skill;
   }
+}
+
+export function getSkillSearchRoots(workspaceRoot: string): SkillSearchRoot[] {
+  const normalizedWorkspaceRoot = path.resolve(workspaceRoot);
+  const roots: SkillSearchRoot[] = [];
+  const userLegacyRoot = getUserBlackpearlRoot();
+  const userAgentsRoot = getUserSkillRoot();
+
+  if (userLegacyRoot) {
+    roots.push({
+      scope: "user",
+      format: "blackpearl-legacy",
+      rootDir: userLegacyRoot,
+      skillsDir: path.join(userLegacyRoot, "skills"),
+    });
+  }
+
+  if (userAgentsRoot) {
+    roots.push({
+      scope: "user",
+      format: "agents",
+      rootDir: userAgentsRoot,
+      skillsDir: userAgentsRoot,
+    });
+  }
+
+  roots.push(
+    {
+      scope: "project",
+      format: "blackpearl-legacy",
+      rootDir: normalizedWorkspaceRoot,
+      skillsDir: path.join(normalizedWorkspaceRoot, LEGACY_SKILLS_DIR),
+    },
+    {
+      scope: "project",
+      format: "agents",
+      rootDir: normalizedWorkspaceRoot,
+      skillsDir: path.join(normalizedWorkspaceRoot, ".agents"),
+    },
+  );
+
+  return roots;
+}
+
+export function getUserSkillRoot(): string | undefined {
+  const configured = process.env.AGENTS_HOME;
+  if (configured && configured.trim()) {
+    return path.resolve(expandHome(configured.trim()));
+  }
+
+  const home = os.homedir();
+  if (!home) {
+    return undefined;
+  }
+
+  return path.join(home, ".agents");
+}
+
+export function getUserBlackpearlRoot(): string | undefined {
+  const configured = process.env.BLACKPEARL_HOME;
+  if (configured && configured.trim()) {
+    return path.resolve(expandHome(configured.trim()));
+  }
+
+  const home = os.homedir();
+  if (!home) {
+    return undefined;
+  }
+
+  return path.join(home, ".blackpearl");
+}
+
+function expandHome(value: string): string {
+  if (value === "~") {
+    return os.homedir();
+  }
+
+  if (value.startsWith("~/") || value.startsWith("~\\")) {
+    return path.join(os.homedir(), value.slice(2));
+  }
+
+  return value;
+}
+
+function parseStringList(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const unwrapped =
+    trimmed.startsWith("[") && trimmed.endsWith("]")
+      ? trimmed.slice(1, -1)
+      : trimmed;
+
+  return unwrapped
+    .split(",")
+    .map((item) => item.trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1"))
+    .filter(Boolean);
 }
 
 // ── Minimal YAML frontmatter parser ──────────────────

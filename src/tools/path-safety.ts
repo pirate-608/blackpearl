@@ -1,7 +1,7 @@
 import path from "node:path";
 import { ToolExecutionError } from "../shared/errors.js";
 
-const PRIVATE_DIRS = new Set([".git", ".blackpearl"]);
+const PRIVATE_DIRS = new Set([".git", ".blackpearl", ".agents"]);
 const GENERATED_DIRS = new Set([
   "node_modules",
   "dist",

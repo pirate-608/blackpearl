@@ -192,13 +192,24 @@ MCP 服务器配置文件：`.blackpearl/mcp-servers.json`
 
 ## Skills 配置
 
-Skills 定义在 `.blackpearl/skills/<名称>/SKILL.md`，使用 YAML frontmatter + Markdown 正文：
+Skills 定义使用主流 `skill-name/SKILL.md` 结构，文件内容为 YAML frontmatter + Markdown 正文：
+
+| 范围 | 路径 | 优先级 |
+| --- | --- | --- |
+| 项目级新标准 | `.agents/<skill-name>/SKILL.md` | 最高 |
+| 项目级旧兼容 | `.blackpearl/skills/<skill-name>/SKILL.md` | 高 |
+| 用户级新标准 | `~/.agents/<skill-name>/SKILL.md` | 中 |
+| 用户级旧兼容 | `~/.blackpearl/skills/<skill-name>/SKILL.md` | 低 |
+
+同名 Skill 以后加载者覆盖先加载者，因此项目级优先于用户级，新 `.agents` 路径优先于旧 `.blackpearl/skills` 路径。`AGENTS_HOME` 可覆盖用户级新标准根目录，`BLACKPEARL_HOME` 可覆盖用户级旧兼容根目录。
 
 ```markdown
 ---
 name: code-review
 description: 审查代码、发现 bug、提出改进建议
-allowed-tools: file_read, file_write
+allowed-tools:
+  - file_read
+  - file_write
 ---
 
 你是代码审查专家...
@@ -338,7 +349,7 @@ export type ToolContext = {
 安全策略：
 
 - 使用 `path.resolve` 和 `path.relative` 确认目标路径位于工作区内。
-- 阻止读取 `.git/`、`.blackpearl/`、`.env` 等敏感路径。
+- 阻止读取 `.git/`、`.blackpearl/`、`.agents/`、`.env` 等敏感路径。
 - 超出工作区或命中敏感路径时抛出 `ToolExecutionError`。
 
 ### `file_list`
@@ -447,7 +458,7 @@ export type ToolContext = {
 安全策略：
 
 - 路径仍必须位于工作区内。
-- 阻止写入 `.git/`、`.blackpearl/`、`node_modules/`、`dist/`、`site/`、`.venv/`、`.env` 等路径。
+- 阻止写入 `.git/`、`.blackpearl/`、`.agents/`、`node_modules/`、`dist/`、`site/`、`.venv/`、`.env` 等路径。
 - 写入前自动创建父目录。
 
 ### `shell_command`

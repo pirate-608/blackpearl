@@ -54,6 +54,12 @@ const server = http.createServer((request, response) => {
       skills: (context.skillRegistry?.list() ?? []).map((s) => ({
         name: s.name,
         description: s.description,
+        source: s.source
+          ? {
+              scope: s.source.scope,
+              format: s.source.format,
+            }
+          : undefined,
       })),
       mcpConnections: context.mcpManager?.listConnections() ?? [],
       messages: context.session.messages,
@@ -1381,6 +1387,21 @@ function renderPage(): string {
         case "tools":
           fetch("/api/state").then(function(r) { return r.json(); }).then(function(s) {
             setNotice("Available tools: " + (s.tools || []).join(", "));
+          });
+          break;
+        case "skills":
+          fetch("/api/state").then(function(r) { return r.json(); }).then(function(s) {
+            var skills = s.skills || [];
+            if (skills.length === 0) {
+              setNotice("No skills loaded. Create .agents/<skill-name>/SKILL.md or ~/.agents/<skill-name>/SKILL.md.");
+              return;
+            }
+            setNotice("Skills: " + skills.map(function(skill) {
+              var source = skill.source
+                ? skill.source.scope + "/" + (skill.source.format === "agents" ? ".agents" : ".blackpearl")
+                : "unknown";
+              return skill.name + " [" + source + "] (" + String(skill.description || "").slice(0, 40) + "...)";
+            }).join("; "));
           });
           break;
         case "clear":

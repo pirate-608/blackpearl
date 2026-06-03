@@ -71,8 +71,8 @@ registry.register(exampleTool);
 当前内置的文件和命令行工具遵循以下约束：
 
 - 所有文件路径必须位于 `workspaceRoot` 内。
-- 文件读取会阻止 `.git/`、`.blackpearl/` 和 `.env` 等敏感路径。
-- 文件写入会阻止 `.git/`、`.blackpearl/`、`node_modules/`、`dist/`、`site/`、`.venv/`、`.env` 等路径。
+- 文件读取会阻止 `.git/`、`.blackpearl/`、`.agents/` 和 `.env` 等敏感路径。
+- 文件写入会阻止 `.git/`、`.blackpearl/`、`.agents/`、`node_modules/`、`dist/`、`site/`、`.venv/`、`.env` 等路径。
 - `file_edit` 要求 `oldText` 精确出现一次，避免误改多个位置。
 - `shell_command` 使用 `execFile`，不经过 shell，不支持管道、重定向或命令连接符。
 - `shell_command` 默认 10 秒超时，最大 30 秒，并截断过长输出。

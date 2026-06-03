@@ -119,13 +119,23 @@ corepack pnpm web
 
 ## Skills 技能系统
 
-在 `.blackpearl/skills/<名称>/SKILL.md` 下创建技能文件，Agent 会根据用户输入自动匹配并激活对应技能。技能可自定义系统提示词和可用工具白名单。
+Skills 使用主流 `skill-name/SKILL.md` 结构和 YAML frontmatter。项目级路径优先于用户级路径；同名技能会由项目级覆盖用户级。
+
+| 范围 | 推荐路径 | 说明 |
+| --- | --- | --- |
+| 项目级 | `.agents/<skill-name>/SKILL.md` | 随项目生效，优先级最高 |
+| 用户级 | `~/.agents/<skill-name>/SKILL.md` | 跨项目复用 |
+| 旧兼容 | `.blackpearl/skills/<skill-name>/SKILL.md` | 继续可读，但不再推荐新建 |
+
+Agent 会根据用户输入自动匹配并激活对应技能。技能可自定义系统提示词和可用工具白名单。
 
 ```markdown
 ---
 name: code-review
 description: 审查代码、发现 bug、提出改进建议
-allowed-tools: file_read, file_write
+allowed-tools:
+  - file_read
+  - file_write
 ---
 
 你是代码审查专家。审查代码时：
