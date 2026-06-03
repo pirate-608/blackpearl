@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 
+// In SEA bundles, esbuild's "define" replaces this expression with the
+// literal version string.  In dev mode (tsx) it stays undefined and we
+// fall back to "dev".
+const VERSION =
+  (globalThis as Record<string, unknown>).__BLACKPEARL_VERSION__ ?? "dev";
+
 const USAGE = `
 blackpearl-agent CLI
 
@@ -9,6 +15,7 @@ Usage:
   blackpearl web                      Start web UI (new session)
   blackpearl --resume <session-id>    Resume TUI session by ID
   blackpearl web --resume <session-id> Resume web session by ID
+  blackpearl --version                Print version
   blackpearl --help                   Show this help
 
 Examples:
@@ -22,10 +29,12 @@ function parseArgs(argv: string[]): {
   mode: "tui" | "web";
   resumeId: string | undefined;
   help: boolean;
+  version: boolean;
 } {
   let mode: "tui" | "web" = "tui";
   let resumeId: string | undefined;
   let help = false;
+  let version = false;
   let i = 2; // skip node and script path
 
   while (i < argv.length) {
@@ -33,6 +42,9 @@ function parseArgs(argv: string[]): {
 
     if (arg === "--help" || arg === "-h") {
       help = true;
+      i++;
+    } else if (arg === "--version" || arg === "-V" || arg === "-v") {
+      version = true;
       i++;
     } else if (arg === "web") {
       mode = "web";
@@ -49,13 +61,18 @@ function parseArgs(argv: string[]): {
     }
   }
 
-  return { mode, resumeId, help };
+  return { mode, resumeId, help, version };
 }
 
-const { mode, resumeId, help } = parseArgs(process.argv);
+const { mode, resumeId, help, version } = parseArgs(process.argv);
 
 if (help) {
   console.log(USAGE);
+  process.exit(0);
+}
+
+if (version) {
+  console.log(`blackpearl ${VERSION}`);
   process.exit(0);
 }
 

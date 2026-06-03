@@ -33,6 +33,11 @@ if (command === "bundle") {
 
 async function buildBundle() {
   await mkdir(DIST_DIR, { recursive: true });
+
+  // Read version from package.json for injection into the bundle
+  const pkgPath = join(ROOT_DIR, "package.json");
+  const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
+
   await esbuild.build({
     entryPoints: [join(ROOT_DIR, "src", "cli.ts")],
     outfile: BUNDLE_PATH,
@@ -44,6 +49,9 @@ async function buildBundle() {
     logLevel: "info",
     sourcemap: false,
     external: ["pdf-parse"],
+    define: {
+      "globalThis.__BLACKPEARL_VERSION__": JSON.stringify(pkg.version),
+    },
     plugins: [optionalReactDevtoolsStub()],
   });
 
