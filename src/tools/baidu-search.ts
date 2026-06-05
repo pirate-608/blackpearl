@@ -31,60 +31,95 @@ export const baiduSearchTool = createToolDefinition({
   name: "baidu_search",
   description:
     "Search Baidu Baike (百度百科) for Chinese encyclopedia entries. " +
-    "Use this tool when you need Chinese-language factual information, " +
-    "definitions, or background knowledge about a topic.",
+    "CRITICAL: use a short, EXACT lemma name as the keyword (e.g. '迈克尔·杰克逊', " +
+    "not '迈克尔杰克逊 出生年份 死亡年份'). Multi-word queries will return no results. " +
+    "Use this tool as the primary search for Chinese-language factual queries.",
   schema,
   async execute(input) {
     const keyword = encodeURIComponent(input.keyword.trim());
     const url = `${API_URL}&bk_key=${keyword}`;
 
-    const response = await fetch(url, {
-      headers: {
-        accept: "application/json",
-        "user-agent": "blackpearl-agent-course-demo/0.1",
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        headers: {
+          accept: "application/json",
+          "user-agent": "blackpearl-agent-course-demo/0.1",
+        },
+      });
 
-    if (!response.ok) {
-      return {
-        keyword: input.keyword,
-        found: false,
-        status: response.status,
-        message: `Baidu Baike returned HTTP ${response.status}`,
-      };
-    }
+      if (!response.ok) {
+        return {
+          keyword: input.keyword,
+          found: false,
+          status: response.status,
+          message: `Baidu Baike returned HTTP ${response.status}`,
+        };
+      }
 
-    const data = (await response.json()) as BaiduApiResponse;
+      const data = (await response.json()) as BaiduApiResponse;
 
-    if (data.errno && data.errno !== "0") {
-      return {
-        keyword: input.keyword,
-        found: false,
-        errno: data.errno,
-        message: `Baidu Baike error code: ${data.errno}`,
-      };
-    }
+      if (data.errno && data.errno !== "0") {
+        const hints: Record<string, string> = {
+          "2": "Keyword not matched — use a shorter, exact lemma name (e.g. remove extra words like '出生年份' or '生平信息')",
+        };
+        return {
+          keyword: input.keyword,
+          found: false,
+          errno: data.errno,
+          message: hints[data.errno] ?? `Baidu Baike error code: ${data.errno}`,
+        };
+      }
 
-    // Extract text from card fields
-    const cardFields: Record<string, string> = {};
-    if (data.card) {
-      for (const item of data.card) {
-        if (item.name && item.value) {
-          cardFields[item.name] = item.value;
+      // Extract text from card fields (strip HTML tags)
+      const cardFields: Record<string, string> = {};
+      if (data.card) {
+        for (const item of data.card) {
+          if (item.name && item.value) {
+            const clean = stripHtml(String(item.value));
+            cardFields[item.name] = clean;
+          }
         }
       }
-    }
 
-    return {
-      keyword: input.keyword,
-      found: true,
-      title: data.key ?? input.keyword,
-      abstract: data.abstract ?? "",
-      url: data.url ?? `https://baike.baidu.com/item/${keyword}`,
-      cardFields,
-      image: data.image ?? undefined,
-      subLemmas:
-        data.sub_lemma?.map((s) => ({ name: s.key_name ?? s.name, id: s.sub_lemma_id })) ?? [],
-    };
+      // Build a text summary from card fields if abstract is empty
+      let abstract = stripHtml(data.abstract ?? "");
+      if (!abstract && Object.keys(cardFields).length > 0) {
+        const topFields = Object.entries(cardFields)
+          .slice(0, 8)
+          .map(([k, v]) => `${k}: ${v}`);
+        abstract = topFields.join("；");
+      }
+
+      return {
+        keyword: input.keyword,
+        found: true,
+        title: data.key ?? input.keyword,
+        abstract,
+        url: data.url ?? `https://baike.baidu.com/item/${keyword}`,
+        cardFields,
+        image: data.image ?? undefined,
+        subLemmas:
+          data.sub_lemma?.map((s) => ({ name: s.key_name ?? s.name, id: s.sub_lemma_id })) ?? [],
+      };
+    } catch (error) {
+      return {
+        keyword: input.keyword,
+        found: false,
+        error: `Network error: ${error instanceof Error ? error.message : String(error)}`,
+        message: "Baidu Baike request failed. Try again with a simpler keyword.",
+      };
+    }
   },
 });
+
+function stripHtml(text: string): string {
+  return text
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#\d+;/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
