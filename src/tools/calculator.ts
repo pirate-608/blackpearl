@@ -21,14 +21,26 @@ const parser = new Parser({
 
 export const calculatorTool = createToolDefinition({
   name: "calculator",
-  description: "Safely evaluate a mathematical expression.",
+  description:
+    "Safely evaluate a mathematical expression. " +
+    "The expression must contain only numbers, operators (+, -, *, /, ^), " +
+    "parentheses, and decimals. Do NOT include commas, dates like (3, 14), " +
+    "JSON, equals signs, or units.",
   schema,
   async execute(input) {
-    const value = parser.evaluate(input.expression);
+    try {
+      const value = parser.evaluate(input.expression);
 
-    return {
-      expression: input.expression,
-      result: value,
-    };
+      return {
+        expression: input.expression,
+        result: value,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        expression: input.expression,
+        error: `Invalid expression: ${message}. Use only numbers, operators (+, -, *, /, ^), parentheses, and decimals. Remove commas, dates, or JSON syntax.`,
+      };
+    }
   },
 });
