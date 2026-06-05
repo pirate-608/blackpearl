@@ -37,6 +37,8 @@ theme:
     - search.highlight
     - content.code.annotate
     - content.code.copy
+  logo: assets/images/blackpearl.svg
+  favicon: assets/images/blackpearl.ico
   icon:
     repo: fontawesome/brands/github
 

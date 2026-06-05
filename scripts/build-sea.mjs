@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -13,6 +14,7 @@ const DIST_DIR = join(ROOT_DIR, "dist-sea");
 const BUNDLE_PATH = join(DIST_DIR, "blackpearl.bundle.mjs");
 const SEA_CONFIG_PATH = join(DIST_DIR, "sea-config.json");
 const OUTPUT_BINARY_PATH = join(DIST_DIR, getBinaryName());
+const ICON_PATH = join(ROOT_DIR, "docs", "assets", "images", "blackpearl.ico");
 const NODE_MINIMUM = { major: 25, minor: 5, patch: 0 };
 
 const command = process.argv[2] ?? "sea";
@@ -104,11 +106,26 @@ async function buildSeaExecutable() {
 
   await run(process.execPath, ["--build-sea", SEA_CONFIG_PATH]);
 
-  if (process.platform !== "win32") {
+  if (process.platform === "win32") {
+    await embedIcon();
+  } else {
     await chmod(OUTPUT_BINARY_PATH, 0o755);
   }
 
   console.log(`Created SEA executable: ${relative(OUTPUT_BINARY_PATH)}`);
+}
+
+async function embedIcon() {
+  try {
+    const require = createRequire(import.meta.url);
+    const rcedit = require("rcedit");
+    await rcedit(OUTPUT_BINARY_PATH, { icon: ICON_PATH });
+    console.log(`Embedded icon: ${relative(ICON_PATH)}`);
+  } catch (error) {
+    console.warn(
+      `Could not embed icon (non-fatal): ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 async function smokeTest() {

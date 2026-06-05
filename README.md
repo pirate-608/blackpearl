@@ -1,6 +1,10 @@
-# blackpearl-agent
+<p align="center">
+  <img src="docs/assets/images/blackpearl.svg" alt="blackpearl" width="120">
+</p>
 
-一个基于 TypeScript、Ink TUI 和多厂商模型后端的教学型 AI Agent 框架。
+<h1 align="center">blackpearl-agent</h1>
+
+<p align="center">一个基于 TypeScript、Ink TUI 和多厂商模型后端的教学型 AI Agent 框架。</p>
 
 项目支持系统化模型后端配置：OpenAI、Gemini、Claude、DeepSeek 和 Ollama。OpenAI-compatible 后端使用 OpenAI SDK；Claude 使用 Anthropic Messages API。不同厂商对工具调用、鉴权和模型名的兼容程度不同，项目按 provider 分别适配。
 
