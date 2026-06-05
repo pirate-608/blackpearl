@@ -1,6 +1,6 @@
 {
   "name": "blackpearl-agent",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "A TypeScript + Ink TUI multi-provider AI Agent framework for educational use.",
   "private": true,
   "type": "module",
