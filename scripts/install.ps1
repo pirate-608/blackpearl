@@ -10,30 +10,25 @@
     extracts blackpearl.exe into ~/.local/bin, and adds it to PATH.
 
 .EXAMPLE
-    irm https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.ps1 | iex
+    irm https://pirate-608.github.io/blackpearl/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Stop"
 
-$Repo = $env:BLACKPEARL_REPO
-if (-not $Repo) {
-    $Repo = "pirate-608/blackpearl"
-}
+$PagesBase = "https://pirate-608.github.io/blackpearl"
+$ReleasesBase = "https://github.com/pirate-608/blackpearl/releases/download"
 
 $Platform = "windows-x64"
 $ArchiveName = "blackpearl-$Platform.zip"
 $BinaryName = "blackpearl.exe"
 $InstallDir = "$env:USERPROFILE\.local\bin"
 
-function Get-LatestReleaseUrl {
-    $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
-    Write-Host "Fetching latest release from $apiUrl ..."
-    $release = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "blackpearl-installer" }
-    $asset = $release.assets | Where-Object { $_.name -eq $ArchiveName } | Select-Object -First 1
-    if (-not $asset) {
-        throw "Could not find asset '$ArchiveName' in latest release."
+function Get-DownloadUrl {
+    $version = $env:BLACKPEARL_VERSION
+    if ($version) {
+        return "$ReleasesBase/$version/$ArchiveName"
     }
-    return $asset.browser_download_url
+    return "$PagesBase/$ArchiveName"
 }
 
 function Ensure-Directory {
@@ -62,7 +57,7 @@ Write-Host "Installing blackpearl (Windows x64) ..."
 
 Ensure-Directory -Path $InstallDir
 
-$downloadUrl = Get-LatestReleaseUrl
+$downloadUrl = Get-DownloadUrl
 $tmpFile = Join-Path $env:TEMP $ArchiveName
 
 Write-Host "Downloading from $downloadUrl ..."

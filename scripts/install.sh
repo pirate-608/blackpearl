@@ -4,13 +4,14 @@ set -euo pipefail
 # Install blackpearl to ~/.local/bin
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.sh | bash
+#   curl -fsSL https://pirate-608.github.io/blackpearl/install.sh | bash
 #
 # Or with a specific release:
 #   BLACKPEARL_VERSION=v0.2.0 bash install.sh
 
-REPO="${BLACKPEARL_REPO:-pirate-608/blackpearl}"
 INSTALL_DIR="${BLACKPEARL_INSTALL_DIR:-$HOME/.local/bin}"
+PAGES_BASE="https://pirate-608.github.io/blackpearl"
+RELEASES_BASE="https://github.com/pirate-608/blackpearl/releases/download"
 
 # ---------- helpers ----------
 
@@ -107,15 +108,16 @@ get_platform() {
 
 get_download_url() {
     local platform="$1"
-    local version="${BLACKPEARL_VERSION:-latest}"
     local asset="blackpearl-${platform}.tar.gz"
 
-    if [ "$version" = "latest" ]; then
-        local api_url="https://api.github.com/repos/${REPO}/releases/latest"
-        curl -sL "$api_url" | grep -o "https://github.com/${REPO}/releases/download/[^\"]*/${asset}" | head -n 1
-    else
-        echo "https://github.com/${REPO}/releases/download/${version}/${asset}"
+    # Specific version: use GitHub Releases direct download (no API rate limit)
+    if [ -n "${BLACKPEARL_VERSION:-}" ]; then
+        echo "${RELEASES_BASE}/${BLACKPEARL_VERSION}/${asset}"
+        return
     fi
+
+    # Latest: use GitHub Pages stable URL (no API needed)
+    echo "${PAGES_BASE}/${asset}"
 }
 
 # ---------- main ----------
