@@ -53,6 +53,10 @@ type ConnectDraft = {
   baseUrl?: string;
 };
 
+const VERSION: string = String(
+  (globalThis as Record<string, unknown>).__BLACKPEARL_VERSION__ ?? "dev",
+);
+
 type ConnectStep = "provider" | "apiKey" | "model" | "baseUrl";
 
 type SessionSelection = {
@@ -433,6 +437,8 @@ export function App({
     return newConnection;
   }
 
+  const showBanner = session.messages.length === 0 && uiMode.type === "normal";
+
   return (
     <Box flexDirection="column">
       <StatusBar
@@ -441,6 +447,7 @@ export function App({
         model={connection.model}
         isRunning={isRunning}
       />
+      {showBanner ? <Banner version={VERSION} /> : null}
       <Box borderStyle="single" minHeight={20}>
         <ConversationPane messages={session.messages} />
         <ActivityPane activities={session.activities} />
@@ -514,6 +521,28 @@ function SessionList({
   );
 }
 
+
+const BANNER_LINES = [
+  "  ____  _        _    ____ _  ______  _____    _    ____  _     ",
+  " | __ )| |      / \  / ___| |/ /  _ \| ____|  / \  |  _ \| |    ",
+  " |  _ \| |     / _ \| |   | ' /| |_) |  _|   / _ \ | |_) | |    ",
+  " | |_) | |___ / ___ \ |___| . \|  __/| |___ / ___ \|  _ <| |___ ",
+  " |____/|_____/_/   \_\____|_|\_\_|   |_____/_/   \_\_| \_\_____|",
+];
+
+function Banner({ version }: { version: string }): JSX.Element {
+  return (
+    <Box flexDirection="column" paddingX={1} paddingY={1}>
+      {BANNER_LINES.map((line, i) => (
+        <Text key={i} color="cyan">{line}</Text>
+      ))}
+      <Text color="gray" dimColor>
+        blackpearl CLI v{version} — 输入 /help 查看命令
+      </Text>
+      <Text> </Text>
+    </Box>
+  );
+}
 function formatSkillNotice(skill: ReturnType<SkillRegistry["list"]>[number]): string {
   const source =
     skill.source
