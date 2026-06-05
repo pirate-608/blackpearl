@@ -53,6 +53,58 @@ export class TranscriptStore {
   }
 }
 
+export type SessionSummary = {
+  id: string;
+  createdAt: string;
+  firstUserMessage: string;
+};
+
+export async function listSessions(
+  workspaceRoot: string,
+): Promise<SessionSummary[]> {
+  const sessionsDir = path.join(workspaceRoot, ".agent-sessions");
+
+  let files: string[];
+  try {
+    files = await fs.readdir(sessionsDir);
+  } catch {
+    return [];
+  }
+
+  const summaries: SessionSummary[] = [];
+
+  for (const file of files) {
+    if (!file.endsWith(".jsonl")) continue;
+
+    const sessionId = file.replace(/\.jsonl$/, "");
+    const filePath = path.join(sessionsDir, file);
+
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      const firstLine = raw.split(/\r?\n/).find(Boolean);
+      if (!firstLine) continue;
+
+      const record = JSON.parse(firstLine) as TranscriptRecord;
+
+      let firstUserMessage = "";
+      if (record.kind === "message") {
+        firstUserMessage = (record as { role: string; content: string }).content || "";
+      }
+
+      summaries.push({
+        id: sessionId,
+        createdAt: record.createdAt,
+        firstUserMessage: firstUserMessage.slice(0, 80),
+      });
+    } catch {
+      // Skip unreadable sessions
+    }
+  }
+
+  summaries.sort((a, b) => b.id.localeCompare(a.id));
+  return summaries;
+}
+
 function isNodeFileNotFound(error: unknown): boolean {
   return (
     typeof error === "object" &&

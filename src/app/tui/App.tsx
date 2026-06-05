@@ -19,6 +19,11 @@ import {
 import { createRunner } from "../../llm/runner-factory.js";
 import type { SkillRegistry } from "../../skills/skill-registry.js";
 import type { ToolRegistry } from "../../tools/registry.js";
+import {
+  TranscriptStore,
+  type SessionSummary,
+  listSessions,
+} from "../../storage/transcript-store.js";
 import { ActivityPane } from "./ActivityPane.js";
 import { ConversationPane } from "./ConversationPane.js";
 import { InputBox } from "./InputBox.js";
@@ -50,9 +55,15 @@ type ConnectDraft = {
 
 type ConnectStep = "provider" | "apiKey" | "model" | "baseUrl";
 
+type SessionSelection = {
+  sessions: SessionSummary[];
+  selectedIndex: number;
+};
+
 type UiMode =
   | { type: "normal" }
-  | { type: "connect"; step: ConnectStep; draft: ConnectDraft };
+  | { type: "connect"; step: ConnectStep; draft: ConnectDraft }
+  | { type: "sessionSelect"; selection: SessionSelection };
 
 export function App({
   session,
@@ -69,6 +80,7 @@ export function App({
   const [, setRenderTick] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [notice, setNotice] = useState("输入 /help 查看命令。");
+  const [lastInput, setLastInput] = useState<string | undefined>(undefined);
   const [connection, setConnection] = useState(runtime.getConnection());
   const [uiMode, setUiMode] = useState<UiMode>({ type: "normal" });
 
@@ -80,11 +92,64 @@ export function App({
     return unsubscribe;
   }, [eventBus]);
 
-  // Escape key: abort running agent
+  // Escape key: abort running agent or exit session selection
   useInput((input, key) => {
-    if (key.escape && isRunning) {
+    if (!key.escape) return;
+
+    if (uiMode.type === "sessionSelect") {
+      setUiMode({ type: "normal" });
+      setNotice("已取消会话切换。");
+      return;
+    }
+
+    if (isRunning) {
       orchestrator.abort();
       multiAgentOrchestrator.abort();
+    }
+  });
+
+  // Session selection navigation (up/down/enter)
+  useInput((input, key) => {
+    if (uiMode.type !== "sessionSelect") return;
+
+    if (key.upArrow) {
+      setUiMode((prev) => {
+        if (prev.type !== "sessionSelect") return prev;
+        const sel = prev.selection;
+        return {
+          type: "sessionSelect",
+          selection: {
+            ...sel,
+            selectedIndex: (sel.selectedIndex - 1 + sel.sessions.length) % sel.sessions.length,
+          },
+        };
+      });
+      return;
+    }
+
+    if (key.downArrow) {
+      setUiMode((prev) => {
+        if (prev.type !== "sessionSelect") return prev;
+        const sel = prev.selection;
+        return {
+          type: "sessionSelect",
+          selection: {
+            ...sel,
+            selectedIndex: (sel.selectedIndex + 1) % sel.sessions.length,
+          },
+        };
+      });
+      return;
+    }
+
+    if (key.return) {
+      if (uiMode.type === "sessionSelect") {
+        const selected = uiMode.selection.sessions[uiMode.selection.selectedIndex];
+        if (selected) {
+          handleSessionSwitch(selected.id);
+        }
+      }
+      return;
     }
   });
 
@@ -94,10 +159,14 @@ export function App({
   );
 
   async function handleSubmit(input: string): Promise<void> {
+    if (uiMode.type === "sessionSelect") return;
     if (uiMode.type === "connect") {
       await handleConnectInput(input);
       return;
     }
+
+    // Track last user input for re-run
+    setLastInput(input);
 
     // /plan <request> — multi-agent mode with inline request
     if (input.trim().startsWith("/plan ") || input.trim() === "/plan") {
@@ -166,6 +235,20 @@ export function App({
         setRenderTick((tick) => tick + 1);
         return;
       }
+
+      if (command.id === "session") {
+        const summaries = await listSessions(config.workspaceRoot);
+        if (summaries.length === 0) {
+          setNotice("没有历史会话记录。");
+          return;
+        }
+        setUiMode({
+          type: "sessionSelect",
+          selection: { sessions: summaries, selectedIndex: 0 },
+        });
+        setNotice("↑/↓ 选择会话，Enter 切换，Esc 取消");
+        return;
+      }
     }
 
     setIsRunning(true);
@@ -173,6 +256,19 @@ export function App({
     await orchestrator.handleUserInput(input);
     setIsRunning(false);
     setNotice("完成。");
+    setRenderTick((tick) => tick + 1);
+  }
+
+  async function handleSessionSwitch(sessionId: string): Promise<void> {
+    // Load the selected session's transcript
+    const records = await TranscriptStore.readSession(
+      config.workspaceRoot,
+      sessionId,
+    );
+
+    session.switchTo(sessionId, records);
+    setUiMode({ type: "normal" });
+    setNotice(`已切换到会话 ${sessionId.slice(0, 8)}。`);
     setRenderTick((tick) => tick + 1);
   }
 
@@ -351,11 +447,20 @@ export function App({
       </Box>
       <InputBox
         commands={slashCommands}
-        disabled={isRunning}
+        disabled={isRunning || uiMode.type === "sessionSelect"}
+        lastInput={lastInput}
         onSubmit={(value) => void handleSubmit(value)}
       />
       <Text color="gray">{notice}</Text>
       {uiMode.type === "connect" ? <Text color="gray">连接配置中：输入 /exit 可取消</Text> : null}
+      {uiMode.type === "sessionSelect" ? (
+        <SessionList
+          sessions={uiMode.selection.sessions}
+          selectedIndex={uiMode.selection.selectedIndex}
+          currentSessionId={session.id}
+          onSelect={handleSessionSwitch}
+        />
+      ) : null}
     </Box>
   );
 }
@@ -364,6 +469,49 @@ function formatProviderPrompt(): string {
   return `选择后端：${providerProfiles
     .map((profile) => `${profile.id}(${profile.label})`)
     .join("，")}`;
+}
+
+// ── Session list component ─────────────────────────
+
+type SessionListProps = {
+  sessions: SessionSummary[];
+  selectedIndex: number;
+  currentSessionId: string;
+  onSelect: (sessionId: string) => void;
+};
+
+function SessionList({
+  sessions,
+  selectedIndex,
+  currentSessionId,
+}: SessionListProps): JSX.Element {
+  return (
+    <Box flexDirection="column" borderStyle="single" paddingX={1} marginTop={1}>
+      <Text color="gray" bold>
+        历史会话（↑/↓ 选择，Enter 切换，Esc 取消）
+      </Text>
+      {sessions.map((s, i) => {
+        const preview = s.firstUserMessage || "(空会话)";
+        const timestamp = s.createdAt.slice(0, 16).replace("T", " ");
+        const isCurrent = s.id === currentSessionId;
+        const isSelected = i === selectedIndex;
+
+        return (
+          <Text
+            key={s.id}
+            color={isSelected ? "cyan" : "white"}
+            inverse={isSelected}
+          >
+            {isSelected ? "> " : "  "}
+            {s.id.slice(0, 8)}
+            {isCurrent ? " [当前] " : "        "}
+            {timestamp}{" "}
+            {preview}
+          </Text>
+        );
+      })}
+    </Box>
+  );
 }
 
 function formatSkillNotice(skill: ReturnType<SkillRegistry["list"]>[number]): string {

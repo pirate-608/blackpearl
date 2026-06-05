@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentEvent } from "./events.js";
+import type { TranscriptRecord } from "../storage/transcript-store.js";
 
 export type ConversationMessage = {
   role: "user" | "assistant";
@@ -113,6 +114,26 @@ export class AgentSession {
     if (event.type === "error") {
       this.streamingAssistantIndex = undefined;
       this.addActivity("error", event.message);
+    }
+  }
+
+  /** Replace the current session content with a loaded transcript */
+  switchTo(sessionId: string, records: TranscriptRecord[]): void {
+    (this.id as string) = sessionId;
+    this.messages.splice(0);
+    this.activities.splice(0);
+    this.streamingAssistantIndex = undefined;
+
+    for (const record of records) {
+      if (record.kind === "message") {
+        this.messages.push({
+          role: record.role,
+          content: record.content,
+          createdAt: record.createdAt,
+        });
+      } else if (record.kind === "event") {
+        this.applyEvent(record.event);
+      }
     }
   }
 
