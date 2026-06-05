@@ -17,13 +17,13 @@
 **Windows（PowerShell）：**
 
 ```powershell
-irm https://pirate-608.github.io/blackpearl/install.ps1 | iex
+irm https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.ps1 | iex
 ```
 
 **Linux / macOS（Bash）：**
 
 ```bash
-curl -fsSL https://pirate-608.github.io/blackpearl/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.sh | bash
 ```
 
 安装后重启终端即可使用：

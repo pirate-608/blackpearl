@@ -10,13 +10,13 @@
     extracts blackpearl.exe into ~/.local/bin, and adds it to PATH.
 
 .EXAMPLE
-    irm https://pirate-608.github.io/blackpearl/install.ps1 | iex
+    irm https://raw.githubusercontent.com/pirate-608/blackpearl/main/scripts/install.ps1 | iex
 #>
 
 $ErrorActionPreference = "Stop"
 
-$PagesBase = "https://pirate-608.github.io/blackpearl"
 $ReleasesBase = "https://github.com/pirate-608/blackpearl/releases/download"
+$LatestBase = "https://github.com/pirate-608/blackpearl/releases/latest/download"
 
 $Platform = "windows-x64"
 $ArchiveName = "blackpearl-$Platform.zip"
@@ -28,7 +28,9 @@ function Get-DownloadUrl {
     if ($version) {
         return "$ReleasesBase/$version/$ArchiveName"
     }
-    return "$PagesBase/$ArchiveName"
+    # Latest: GitHub's /releases/latest/download/ redirects to the latest
+    # release asset without hitting the API — no rate limit.
+    return "$LatestBase/$ArchiveName"
 }
 
 function Ensure-Directory {
