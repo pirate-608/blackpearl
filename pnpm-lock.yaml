@@ -23,6 +23,9 @@ importers:
       expr-eval:
         specifier: ^2.0.2
         version: 2.0.2
+      fuse.js:
+        specifier: ^7.4.1
+        version: 7.4.1
       ink:
         specifier: ^5.1.0
         version: 5.2.1(@types/react@18.3.29)(react@18.3.1)
@@ -941,6 +944,10 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
+
+  fuse.js@7.4.1:
+    resolution: {integrity: sha512-AY7lKAXK71hi3WgUvDy6oZL67UEHOOtvCAwVdOXHyJd6ZzftBy7QqxuXt4HxmmAhYjmp/YCuOELZtIvAdlZ+fw==}
+    engines: {node: '>=10'}
 
   get-east-asian-width@1.6.0:
     resolution: {integrity: sha512-QRbvDIbx6YklUe6RxeTeleMR0yv3cYH6PsPZHcnVn7xv7zO1BHN8r0XETu8n6Ye3Q+ahtSarc3WgtNWmehIBfA==}
@@ -2219,6 +2226,8 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
+
+  fuse.js@7.4.1: {}
 
   get-east-asian-width@1.6.0: {}
 
