@@ -1,4 +1,5 @@
 import type { AppConfig } from "../shared/config.js";
+import { baiduSearchTool } from "./baidu-search.js";
 import { calculatorTool } from "./calculator.js";
 import { fileEditTool } from "./file-edit.js";
 import { fileListTool } from "./file-list.js";
@@ -14,6 +15,7 @@ export function createDefaultToolRegistry(config: AppConfig): ToolRegistry {
     workspaceRoot: config.workspaceRoot,
   });
 
+  registry.register(baiduSearchTool);
   registry.register(calculatorTool);
   registry.register(wikiSearchTool);
   registry.register(fileListTool);

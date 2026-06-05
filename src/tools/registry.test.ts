@@ -50,6 +50,7 @@ describe("ToolRegistry schema generation", () => {
     });
 
     expect(registry.list().map((tool) => tool.name)).toEqual([
+      "baidu_search",
       "calculator",
       "wiki_search",
       "file_list",
